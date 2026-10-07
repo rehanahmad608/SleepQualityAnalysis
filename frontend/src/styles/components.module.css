@@ -1,0 +1,11 @@
+.metricCardCompact {
+  padding: 10px 12px;
+}
+
+.stickyChartHeader {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 2;
+  padding-bottom: 8px;
+}

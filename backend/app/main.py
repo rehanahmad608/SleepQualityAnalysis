@@ -12,7 +12,8 @@ from app.api.v1 import api_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.db.session import init_db
-    init_db()
+    if settings.AUTO_CREATE_TABLES and settings.is_sqlite:
+        init_db()
     yield
 
 

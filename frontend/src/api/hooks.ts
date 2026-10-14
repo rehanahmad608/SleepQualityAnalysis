@@ -27,9 +27,10 @@ export const queryKeys = {
   syncRun: (runId: string) => ['sync-run', runId] as const,
 };
 
-export function useStudy(): UseQueryResult<StudyConfig> {
+export function useStudy(enabled = true): UseQueryResult<StudyConfig> {
   return useQuery({
     queryKey: queryKeys.study,
+    enabled,
     queryFn: () => apiClient.get<StudyConfig>('/study'),
     staleTime: 60 * 1000,
   });

@@ -1,0 +1,636 @@
+{
+  "resting_heart_rate": {
+    "json_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "json_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "json_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "json_daily_resting_heart_rate_date_year": {
+      "original_field": "dailyRestingHeartRate.date.year",
+      "sql_type": "integer"
+    },
+    "json_daily_resting_heart_rate_date_month": {
+      "original_field": "dailyRestingHeartRate.date.month",
+      "sql_type": "integer"
+    },
+    "json_daily_resting_heart_rate_date_day": {
+      "original_field": "dailyRestingHeartRate.date.day",
+      "sql_type": "integer"
+    },
+    "json_daily_resting_heart_rate_beats_per_minute": {
+      "original_field": "dailyRestingHeartRate.beatsPerMinute",
+      "sql_type": "numeric"
+    },
+    "json_daily_resting_heart_rate_daily_resting_heart_r_4e45daed28": {
+      "original_field": "dailyRestingHeartRate.dailyRestingHeartRateMetadata.calculationMethod",
+      "sql_type": "text"
+    },
+    "csv_daily_resting_heart_rate_beats_per_minute": {
+      "original_field": "dailyRestingHeartRate.beatsPerMinute",
+      "sql_type": "numeric"
+    },
+    "csv_daily_resting_heart_rate_daily_resting_heart_r_4e45daed28": {
+      "original_field": "dailyRestingHeartRate.dailyRestingHeartRateMetadata.calculationMethod",
+      "sql_type": "text"
+    },
+    "csv_daily_resting_heart_rate_date_day": {
+      "original_field": "dailyRestingHeartRate.date.day",
+      "sql_type": "integer"
+    },
+    "csv_daily_resting_heart_rate_date_month": {
+      "original_field": "dailyRestingHeartRate.date.month",
+      "sql_type": "integer"
+    },
+    "csv_daily_resting_heart_rate_date_year": {
+      "original_field": "dailyRestingHeartRate.date.year",
+      "sql_type": "integer"
+    },
+    "csv_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "csv_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "csv_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    }
+  },
+  "hrv": {
+    "json_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "json_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "json_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "json_heart_rate_variability_sample_time_physical_time": {
+      "original_field": "heartRateVariability.sampleTime.physicalTime",
+      "sql_type": "timestamptz"
+    },
+    "json_heart_rate_variability_sample_time_utc_offset": {
+      "original_field": "heartRateVariability.sampleTime.utcOffset",
+      "sql_type": "text"
+    },
+    "json_heart_rate_variability_sample_time_civil_time_date_year": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.date.year",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_variability_sample_time_civil_time_date_month": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.date.month",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_variability_sample_time_civil_time_date_day": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.date.day",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_variability_sample_time_civil_time_time_hours": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.time.hours",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_variability_sample_time_civil_time__dea2ed0e30": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_variability_root_mean_square_of_suc_03f31fc985": {
+      "original_field": "heartRateVariability.rootMeanSquareOfSuccessiveDifferencesMilliseconds",
+      "sql_type": "numeric"
+    },
+    "json_heart_rate_variability_metadata_high_frequency_power": {
+      "original_field": "heartRateVariability.metadata.highFrequencyPower",
+      "sql_type": "numeric"
+    },
+    "json_heart_rate_variability_metadata_low_frequency_power": {
+      "original_field": "heartRateVariability.metadata.lowFrequencyPower",
+      "sql_type": "numeric"
+    },
+    "csv_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "csv_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "csv_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "csv_heart_rate_variability_metadata_high_frequency_power": {
+      "original_field": "heartRateVariability.metadata.highFrequencyPower",
+      "sql_type": "numeric"
+    },
+    "csv_heart_rate_variability_metadata_low_frequency_power": {
+      "original_field": "heartRateVariability.metadata.lowFrequencyPower",
+      "sql_type": "numeric"
+    },
+    "csv_heart_rate_variability_root_mean_square_of_suc_03f31fc985": {
+      "original_field": "heartRateVariability.rootMeanSquareOfSuccessiveDifferencesMilliseconds",
+      "sql_type": "numeric"
+    },
+    "csv_heart_rate_variability_sample_time_civil_time_date_day": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.date.day",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_variability_sample_time_civil_time_date_month": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.date.month",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_variability_sample_time_civil_time_date_year": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.date.year",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_variability_sample_time_civil_time_time_hours": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.time.hours",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_variability_sample_time_civil_time__dea2ed0e30": {
+      "original_field": "heartRateVariability.sampleTime.civilTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_variability_sample_time_physical_time": {
+      "original_field": "heartRateVariability.sampleTime.physicalTime",
+      "sql_type": "timestamptz"
+    },
+    "csv_heart_rate_variability_sample_time_utc_offset": {
+      "original_field": "heartRateVariability.sampleTime.utcOffset",
+      "sql_type": "text"
+    }
+  },
+  "heart_rate": {
+    "json_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "json_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "json_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "json_heart_rate_sample_time_physical_time": {
+      "original_field": "heartRate.sampleTime.physicalTime",
+      "sql_type": "timestamptz"
+    },
+    "json_heart_rate_sample_time_utc_offset": {
+      "original_field": "heartRate.sampleTime.utcOffset",
+      "sql_type": "text"
+    },
+    "json_heart_rate_sample_time_civil_time_date_year": {
+      "original_field": "heartRate.sampleTime.civilTime.date.year",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_sample_time_civil_time_date_month": {
+      "original_field": "heartRate.sampleTime.civilTime.date.month",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_sample_time_civil_time_date_day": {
+      "original_field": "heartRate.sampleTime.civilTime.date.day",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_sample_time_civil_time_time_hours": {
+      "original_field": "heartRate.sampleTime.civilTime.time.hours",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_sample_time_civil_time_time_minutes": {
+      "original_field": "heartRate.sampleTime.civilTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_sample_time_civil_time_time_seconds": {
+      "original_field": "heartRate.sampleTime.civilTime.time.seconds",
+      "sql_type": "integer"
+    },
+    "json_heart_rate_beats_per_minute": {
+      "original_field": "heartRate.beatsPerMinute",
+      "sql_type": "numeric"
+    },
+    "csv_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "csv_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "csv_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "csv_heart_rate_beats_per_minute": {
+      "original_field": "heartRate.beatsPerMinute",
+      "sql_type": "numeric"
+    },
+    "csv_heart_rate_sample_time_civil_time_date_day": {
+      "original_field": "heartRate.sampleTime.civilTime.date.day",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_sample_time_civil_time_date_month": {
+      "original_field": "heartRate.sampleTime.civilTime.date.month",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_sample_time_civil_time_date_year": {
+      "original_field": "heartRate.sampleTime.civilTime.date.year",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_sample_time_civil_time_time_hours": {
+      "original_field": "heartRate.sampleTime.civilTime.time.hours",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_sample_time_civil_time_time_minutes": {
+      "original_field": "heartRate.sampleTime.civilTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_sample_time_civil_time_time_seconds": {
+      "original_field": "heartRate.sampleTime.civilTime.time.seconds",
+      "sql_type": "integer"
+    },
+    "csv_heart_rate_sample_time_physical_time": {
+      "original_field": "heartRate.sampleTime.physicalTime",
+      "sql_type": "timestamptz"
+    },
+    "csv_heart_rate_sample_time_utc_offset": {
+      "original_field": "heartRate.sampleTime.utcOffset",
+      "sql_type": "text"
+    }
+  },
+  "sleep": {
+    "json_name": {
+      "original_field": "name",
+      "sql_type": "text"
+    },
+    "json_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "json_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "json_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "json_sleep_interval_start_time": {
+      "original_field": "sleep.interval.startTime",
+      "sql_type": "timestamptz"
+    },
+    "json_sleep_interval_start_utc_offset": {
+      "original_field": "sleep.interval.startUtcOffset",
+      "sql_type": "text"
+    },
+    "json_sleep_interval_end_time": {
+      "original_field": "sleep.interval.endTime",
+      "sql_type": "timestamptz"
+    },
+    "json_sleep_interval_end_utc_offset": {
+      "original_field": "sleep.interval.endUtcOffset",
+      "sql_type": "text"
+    },
+    "json_sleep_type": {
+      "original_field": "sleep.type",
+      "sql_type": "text"
+    },
+    "json_sleep_stages": {
+      "original_field": "sleep.stages",
+      "sql_type": "jsonb"
+    },
+    "json_sleep_metadata_stages_status": {
+      "original_field": "sleep.metadata.stagesStatus",
+      "sql_type": "text"
+    },
+    "json_sleep_metadata_processed": {
+      "original_field": "sleep.metadata.processed",
+      "sql_type": "boolean"
+    },
+    "json_sleep_metadata_main_sleep": {
+      "original_field": "sleep.metadata.mainSleep",
+      "sql_type": "boolean"
+    },
+    "json_sleep_summary_minutes_in_sleep_period": {
+      "original_field": "sleep.summary.minutesInSleepPeriod",
+      "sql_type": "numeric"
+    },
+    "json_sleep_summary_minutes_after_wake_up": {
+      "original_field": "sleep.summary.minutesAfterWakeUp",
+      "sql_type": "numeric"
+    },
+    "json_sleep_summary_minutes_to_fall_asleep": {
+      "original_field": "sleep.summary.minutesToFallAsleep",
+      "sql_type": "numeric"
+    },
+    "json_sleep_summary_minutes_asleep": {
+      "original_field": "sleep.summary.minutesAsleep",
+      "sql_type": "numeric"
+    },
+    "json_sleep_summary_minutes_awake": {
+      "original_field": "sleep.summary.minutesAwake",
+      "sql_type": "numeric"
+    },
+    "json_sleep_summary_stages_summary": {
+      "original_field": "sleep.summary.stagesSummary",
+      "sql_type": "jsonb"
+    },
+    "json_sleep_create_time": {
+      "original_field": "sleep.createTime",
+      "sql_type": "timestamptz"
+    },
+    "json_sleep_update_time": {
+      "original_field": "sleep.updateTime",
+      "sql_type": "timestamptz"
+    },
+    "json_sleep_short_awakenings": {
+      "original_field": "sleep.shortAwakenings",
+      "sql_type": "jsonb"
+    },
+    "csv_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "csv_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "csv_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "csv_name": {
+      "original_field": "name",
+      "sql_type": "text"
+    },
+    "csv_sleep_create_time": {
+      "original_field": "sleep.createTime",
+      "sql_type": "timestamptz"
+    },
+    "csv_sleep_interval_end_time": {
+      "original_field": "sleep.interval.endTime",
+      "sql_type": "timestamptz"
+    },
+    "csv_sleep_interval_end_utc_offset": {
+      "original_field": "sleep.interval.endUtcOffset",
+      "sql_type": "text"
+    },
+    "csv_sleep_interval_start_time": {
+      "original_field": "sleep.interval.startTime",
+      "sql_type": "timestamptz"
+    },
+    "csv_sleep_interval_start_utc_offset": {
+      "original_field": "sleep.interval.startUtcOffset",
+      "sql_type": "text"
+    },
+    "csv_sleep_metadata_main_sleep": {
+      "original_field": "sleep.metadata.mainSleep",
+      "sql_type": "boolean"
+    },
+    "csv_sleep_metadata_processed": {
+      "original_field": "sleep.metadata.processed",
+      "sql_type": "boolean"
+    },
+    "csv_sleep_metadata_stages_status": {
+      "original_field": "sleep.metadata.stagesStatus",
+      "sql_type": "text"
+    },
+    "csv_sleep_short_awakenings": {
+      "original_field": "sleep.shortAwakenings",
+      "sql_type": "jsonb"
+    },
+    "csv_sleep_stages": {
+      "original_field": "sleep.stages",
+      "sql_type": "jsonb"
+    },
+    "csv_sleep_summary_minutes_after_wake_up": {
+      "original_field": "sleep.summary.minutesAfterWakeUp",
+      "sql_type": "numeric"
+    },
+    "csv_sleep_summary_minutes_asleep": {
+      "original_field": "sleep.summary.minutesAsleep",
+      "sql_type": "numeric"
+    },
+    "csv_sleep_summary_minutes_awake": {
+      "original_field": "sleep.summary.minutesAwake",
+      "sql_type": "numeric"
+    },
+    "csv_sleep_summary_minutes_in_sleep_period": {
+      "original_field": "sleep.summary.minutesInSleepPeriod",
+      "sql_type": "numeric"
+    },
+    "csv_sleep_summary_minutes_to_fall_asleep": {
+      "original_field": "sleep.summary.minutesToFallAsleep",
+      "sql_type": "numeric"
+    },
+    "csv_sleep_summary_stages_summary": {
+      "original_field": "sleep.summary.stagesSummary",
+      "sql_type": "jsonb"
+    },
+    "csv_sleep_type": {
+      "original_field": "sleep.type",
+      "sql_type": "text"
+    },
+    "csv_sleep_update_time": {
+      "original_field": "sleep.updateTime",
+      "sql_type": "timestamptz"
+    }
+  },
+  "steps": {
+    "json_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "json_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "json_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "json_steps_interval_start_time": {
+      "original_field": "steps.interval.startTime",
+      "sql_type": "timestamptz"
+    },
+    "json_steps_interval_start_utc_offset": {
+      "original_field": "steps.interval.startUtcOffset",
+      "sql_type": "text"
+    },
+    "json_steps_interval_end_time": {
+      "original_field": "steps.interval.endTime",
+      "sql_type": "timestamptz"
+    },
+    "json_steps_interval_end_utc_offset": {
+      "original_field": "steps.interval.endUtcOffset",
+      "sql_type": "text"
+    },
+    "json_steps_interval_civil_start_time_date_year": {
+      "original_field": "steps.interval.civilStartTime.date.year",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_start_time_date_month": {
+      "original_field": "steps.interval.civilStartTime.date.month",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_start_time_date_day": {
+      "original_field": "steps.interval.civilStartTime.date.day",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_start_time_time_hours": {
+      "original_field": "steps.interval.civilStartTime.time.hours",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_start_time_time_minutes": {
+      "original_field": "steps.interval.civilStartTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_end_time_date_year": {
+      "original_field": "steps.interval.civilEndTime.date.year",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_end_time_date_month": {
+      "original_field": "steps.interval.civilEndTime.date.month",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_end_time_date_day": {
+      "original_field": "steps.interval.civilEndTime.date.day",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_end_time_time_hours": {
+      "original_field": "steps.interval.civilEndTime.time.hours",
+      "sql_type": "integer"
+    },
+    "json_steps_interval_civil_end_time_time_minutes": {
+      "original_field": "steps.interval.civilEndTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "json_steps_count": {
+      "original_field": "steps.count",
+      "sql_type": "numeric"
+    },
+    "csv_data_source_device_display_name": {
+      "original_field": "dataSource.device.displayName",
+      "sql_type": "text"
+    },
+    "csv_data_source_platform": {
+      "original_field": "dataSource.platform",
+      "sql_type": "text"
+    },
+    "csv_data_source_recording_method": {
+      "original_field": "dataSource.recordingMethod",
+      "sql_type": "text"
+    },
+    "csv_steps_count": {
+      "original_field": "steps.count",
+      "sql_type": "numeric"
+    },
+    "csv_steps_interval_civil_end_time_date_day": {
+      "original_field": "steps.interval.civilEndTime.date.day",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_end_time_date_month": {
+      "original_field": "steps.interval.civilEndTime.date.month",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_end_time_date_year": {
+      "original_field": "steps.interval.civilEndTime.date.year",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_end_time_time_hours": {
+      "original_field": "steps.interval.civilEndTime.time.hours",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_end_time_time_minutes": {
+      "original_field": "steps.interval.civilEndTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_start_time_date_day": {
+      "original_field": "steps.interval.civilStartTime.date.day",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_start_time_date_month": {
+      "original_field": "steps.interval.civilStartTime.date.month",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_start_time_date_year": {
+      "original_field": "steps.interval.civilStartTime.date.year",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_start_time_time_hours": {
+      "original_field": "steps.interval.civilStartTime.time.hours",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_civil_start_time_time_minutes": {
+      "original_field": "steps.interval.civilStartTime.time.minutes",
+      "sql_type": "integer"
+    },
+    "csv_steps_interval_end_time": {
+      "original_field": "steps.interval.endTime",
+      "sql_type": "timestamptz"
+    },
+    "csv_steps_interval_end_utc_offset": {
+      "original_field": "steps.interval.endUtcOffset",
+      "sql_type": "text"
+    },
+    "csv_steps_interval_start_time": {
+      "original_field": "steps.interval.startTime",
+      "sql_type": "timestamptz"
+    },
+    "csv_steps_interval_start_utc_offset": {
+      "original_field": "steps.interval.startUtcOffset",
+      "sql_type": "text"
+    }
+  },
+  "evening_responses": {
+    "csv_submitted_at_original": {
+      "original_field": "Timestamp",
+      "sql_type": "text"
+    },
+    "csv_energy_level": {
+      "original_field": "Rate your current energy level",
+      "sql_type": "integer"
+    },
+    "csv_productive_hours_original": {
+      "original_field": "How many hours were you productive today, including studying, working, hobbies, or other meaningful activities?",
+      "sql_type": "text"
+    },
+    "csv_last_meal_time": {
+      "original_field": "What time did you consume your last meal today?",
+      "sql_type": "time"
+    }
+  },
+  "morning_responses": {
+    "csv_submitted_at_original": {
+      "original_field": "Timestamp",
+      "sql_type": "text"
+    },
+    "csv_sleep_quality": {
+      "original_field": "Rate your sleep quality last night",
+      "sql_type": "integer"
+    },
+    "csv_bedtime": {
+      "original_field": "What time did you go to bed yesterday?",
+      "sql_type": "time"
+    },
+    "csv_fell_asleep_time": {
+      "original_field": "What time do you think you actually fell asleep yesterday?",
+      "sql_type": "time"
+    },
+    "csv_energy_level": {
+      "original_field": "Rate your current energy level",
+      "sql_type": "integer"
+    }
+  }
+}

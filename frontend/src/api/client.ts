@@ -1,4 +1,4 @@
-const API_BASE = '/api/v1';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
 
 export interface ApiError {
   status: number;
@@ -42,6 +42,7 @@ async function request<T>(
     ...options,
     headers: {
       Accept: 'application/json',
+      ...(sessionStorage.getItem('supabase-access-token') ? { Authorization: `Bearer ${sessionStorage.getItem('supabase-access-token')}` } : {}),
       ...(options.headers ?? {}),
     },
   });
@@ -102,6 +103,7 @@ export const apiClient = {
     form.append('file', file);
     const resp = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
+      headers: sessionStorage.getItem('supabase-access-token') ? { Authorization: `Bearer ${sessionStorage.getItem('supabase-access-token')}` } : {},
       body: form,
     });
     if (!resp.ok) {

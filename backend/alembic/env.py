@@ -2,18 +2,17 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
-
 from alembic import context
 
 from app.config import settings
-from app.db.session import Base
+from app.db.session import Base, build_engine
 
 from app.models import participant, study, connection, ingestion_run, raw_record
 from app.models import sleep_session, sleep_segment, heart_rate, steps, daily_summary
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+migration_url = settings.MIGRATION_DATABASE_URL or settings.DATABASE_URL
+config.set_main_option("sqlalchemy.url", migration_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -35,11 +34,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = build_engine(migration_url)
     with connectable.connect() as connection:
         context.configure(
             connection=connection,

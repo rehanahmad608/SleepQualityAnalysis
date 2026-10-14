@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useStudy } from '../../api/hooks';
 import { formatLocalDate, formatLocalDateTime } from '../../utils/format';
 import StatusBadge from '../ui/StatusBadge';
@@ -12,9 +12,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Overview', end: true },
+  { to: '/', label: 'Participant Data', end: true },
+  { to: '/overview', label: 'Study Overview' },
   { to: '/daily', label: 'Daily' },
-  { to: '/sleep', label: 'Sleep' },
+  { to: '/night', label: 'Night' },
   { to: '/weekly', label: 'Weekly' },
   { to: '/comparison', label: 'Comparison' },
   { to: '/data', label: 'Data Management' },
@@ -30,7 +31,9 @@ function DataModeBadge({ mode }: { mode: 'demo' | 'import' | 'google' }) {
 }
 
 export default function Layout() {
-  const studyQuery = useStudy();
+  const location = useLocation();
+  const structured = ['/', '/participant-data', '/daily', '/night', '/weekly', '/sleep'].includes(location.pathname);
+  const studyQuery = useStudy(!structured);
   const study = studyQuery.data;
 
   return (
@@ -66,24 +69,24 @@ export default function Layout() {
           <div className="app-header-title">
             <h1 style={{ fontSize: '1.05rem' }}>
               Sleep Quality Analysis Dashboard
-              {study?.participant_label ? ` · ${study.participant_label}` : ''}
+              {!structured && study?.participant_label ? ` · ${study.participant_label}` : ''}
             </h1>
-            {study && (
+            {!structured && study && (
               <small>
                 Study period: {formatLocalDate(study.start_date)} → {formatLocalDate(study.end_date)} ({study.days_total} days)
               </small>
             )}
           </div>
-          {study && <DataModeBadge mode={study.data_mode} />}
+          {!structured && study && <DataModeBadge mode={study.data_mode} />}
         </div>
         <div className="app-header-right">
-          {studyQuery.isLoading && (
+          {!structured && studyQuery.isLoading && (
             <span className="text-sm text-muted">Loading study info…</span>
           )}
-          {studyQuery.isError && (
+          {!structured && studyQuery.isError && (
             <StatusBadge variant="danger">Study info unavailable</StatusBadge>
           )}
-          {study && (
+          {!structured && study && (
             <div className="flex items-center gap-2 flex-wrap">
               {study.data_mode === 'demo' && (
                 <div className="demo-banner" role="note">
@@ -124,15 +127,15 @@ export default function Layout() {
       </header>
 
       <main className="main-content" id="main-content" role="main">
-        {studyQuery.isLoading && !study && <LoadingState title="Loading study configuration…" />}
-        {studyQuery.isError && !study && (
+        {!structured && studyQuery.isLoading && !study && <LoadingState title="Loading study configuration…" />}
+        {!structured && studyQuery.isError && !study && (
           <ErrorState
             title="Could not load study configuration"
             errorMessage={studyQuery.error instanceof Error ? studyQuery.error.message : undefined}
             retry={() => studyQuery.refetch()}
           />
         )}
-        {study && <Outlet />}
+        {(structured || study) && <Outlet />}
       </main>
     </div>
   );

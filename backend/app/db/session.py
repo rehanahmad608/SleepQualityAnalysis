@@ -4,13 +4,27 @@ from contextlib import contextmanager
 from typing import Generator
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings
 
 
-connect_args = {"check_same_thread": False} if settings.is_sqlite else {}
-engine = create_engine(settings.DATABASE_URL, connect_args=connect_args, pool_pre_ping=not settings.is_sqlite)
+def build_engine(database_url: str):
+    url = make_url(database_url)
+    if url.get_backend_name() == "sqlite":
+        return create_engine(url, connect_args={"check_same_thread": False})
+    connect_args = {}
+    if url.get_driver_name() == "psycopg":
+        connect_args = {"prepare_threshold": None, "connect_timeout": 10}
+    if url.host and (url.host.endswith(".supabase.co") or url.host.endswith(".supabase.com")):
+        if "sslmode" not in url.query:
+            url = url.update_query_dict({"sslmode": "require"})
+    return create_engine(url, connect_args=connect_args, poolclass=NullPool, pool_pre_ping=True)
+
+
+engine = build_engine(settings.DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

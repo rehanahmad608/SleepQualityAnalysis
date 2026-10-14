@@ -19,7 +19,8 @@ def seed_demo(
     from app.db.session import get_db_context, init_db
     from app.services.ingestion import run_demo_ingestion
 
-    init_db()
+    if settings.is_sqlite:
+        init_db()
 
     start_date: date
     if start_date_str:

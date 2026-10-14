@@ -2,13 +2,25 @@ from __future__ import annotations
 
 from datetime import date
 from typing import List, Optional
+from pathlib import Path
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
+    model_config = SettingsConfigDict(env_file=Path(__file__).resolve().parents[1] / ".env", case_sensitive=True, extra="ignore")
 
     DATABASE_URL: str = "sqlite:///./sleep_quality_dev.db"
+    MIGRATION_DATABASE_URL: str = ""
+    AUTO_CREATE_TABLES: bool = True
+
+    @field_validator("DATABASE_URL", "MIGRATION_DATABASE_URL")
+    @classmethod
+    def use_psycopg(cls, value: str) -> str:
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value[len(prefix):]
+        return value
 
     STUDY_START_DATE: Optional[date] = None
     STUDY_TIMEZONE: str = "Europe/Amsterdam"
@@ -31,6 +43,10 @@ class Settings(BaseSettings):
     PARTICIPANT_CODE: str = "P001"
 
     MAX_IMPORT_SIZE_MB: int = 10
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    # Server-owned mapping: {"supabase-auth-user-id": ["P001"]}.
+    AUTH_PARTICIPANT_ACCESS: str = "{}"
 
     @property
     def cors_origins_list(self) -> List[str]:

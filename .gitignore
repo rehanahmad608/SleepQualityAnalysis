@@ -1,0 +1,18 @@
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+.venv/
+.pytest_cache/
+node_modules/
+dist/
+*.tsbuildinfo
+.vercel/
+health-export*.zip
+health-export*/
+Data Files/
+backend/private_examples/
+backups/

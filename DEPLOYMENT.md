@@ -16,7 +16,7 @@ Set `MIGRATION_DATABASE_URL` locally to the **Session pooler** URI (port 5432),
 with the same driver scheme and SSL option. Set `AUTO_CREATE_TABLES=false`.
 You do not need Supabase API keys for this SQLAlchemy connection.
 
-From `E:\Fontys\S1\Ch1\SleepQualityAnalysis\backend`, using the existing virtual environment:
+From the `backend` folder, using the existing virtual environment:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt

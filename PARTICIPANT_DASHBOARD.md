@@ -101,3 +101,39 @@ Set backend CORS to the exact frontend origin. The authenticated default
 Participant Data view is the supported production workflow; older study views
 retain their legacy response-contract limitations and are not migrated to the
 structured Supabase tables by this change.
+
+## Access control (default-deny)
+
+Participant and legacy endpoints are **denied by default**. Production or any
+shared host must configure Supabase Auth (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) and
+the server-side `AUTH_PARTICIPANT_ACCESS` grants. A request from `127.0.0.1` is
+**not** treated as trusted.
+
+For isolated local testing without sign-in, set all of:
+
+```text
+APP_ENV=local-dev
+DEV_ANONYMOUS_ACCESS=true
+APP_BIND_HOST=127.0.0.1
+```
+
+and start the API exactly like this (loopback only, no proxy headers):
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-proxy-headers
+```
+
+The API refuses to start if anonymous mode is enabled with a non-loopback bind,
+on a shared-host marker (Vercel, Render, Kubernetes, ...), or with Supabase Auth
+configured; per request it also rejects forwarded/proxied requests and non-loopback
+`Host` headers. Anonymous mode is read-only and limited to `PARTICIPANT_CODE`.
+
+## Legacy study features
+
+`GET /api/v1/capabilities` reports whether the original study schema is fully
+installed (every table and column). Legacy pages (`Study Overview`, `Comparison`,
+`Data Management`, `/study/*`) are hidden and legacy endpoints answer
+`503 legacy_study_unavailable` otherwise; `LEGACY_STUDY_ENABLED=true` cannot
+override a missing schema. Legacy `POST /sync` and `POST /import` additionally
+require `APP_ENV=local-dev`, `ALLOW_LEGACY_WRITES=true` and an administrator
+(`AUTH_ADMIN_USERS`), and are always refused on shared hosts.

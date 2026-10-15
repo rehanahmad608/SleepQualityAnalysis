@@ -16,3 +16,18 @@ health-export*/
 Data Files/
 backend/private_examples/
 backups/
+
+# Generated / presentation artifacts
+.ppt_build/
+output/
+*.pptx
+frontend/vite.config.js
+frontend/vite.config.d.ts
+coverage/
+*.db-journal
+*.sqlite-journal
+
+# Local developer settings and secrets (never commit)
+backend/.env
+frontend/.env
+frontend/.env.local

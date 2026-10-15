@@ -90,7 +90,7 @@ export default function SleepPage() {
           <div className="card-header mb-3">
             <div>
               <div className="card-title flex items-center gap-2">
-                <StatusBadge variant="success">Main sleep</StatusBadge>
+                <StatusBadge variant="neutral">Main sleep</StatusBadge>
                 Session details
               </div>
               <div className="card-subtitle">
@@ -99,7 +99,7 @@ export default function SleepPage() {
               </div>
             </div>
             {mainSession.efficiency !== null && mainSession.efficiency !== undefined && !Number.isNaN(mainSession.efficiency) && (
-              <StatusBadge variant="success">Efficiency {Math.round(mainSession.efficiency * 100)}%</StatusBadge>
+              <StatusBadge variant="neutral" icon={false}>Efficiency {Math.round(mainSession.efficiency * 100)}%</StatusBadge>
             )}
           </div>
           <div className="grid grid-cols-3 mb-4">
@@ -114,7 +114,7 @@ export default function SleepPage() {
               <div className="metric-label">Asleep</div>
               <div className="metric-value">{formatDuration(mainSession.asleep_seconds)}</div>
               <div className="metric-meta mt-1">
-                {mainSession.in_bed_seconds > 0
+                {mainSession.in_bed_seconds !== null && mainSession.asleep_seconds !== null && mainSession.in_bed_seconds > 0
                   ? `${Math.round((mainSession.asleep_seconds / mainSession.in_bed_seconds) * 100)}% of in-bed time`
                   : '—'}
               </div>
@@ -137,7 +137,7 @@ export default function SleepPage() {
                 {STAGE_ORDER.map((stage) => {
                   const dur = mainSession.stage_totals_seconds?.[stage] ?? 0;
                   if (dur <= 0) return null;
-                  const pct = (dur / Math.max(1, mainSession.asleep_seconds)) * 100;
+                  const pct = (dur / Math.max(1, mainSession.asleep_seconds ?? 0)) * 100;
                   return (
                     <div
                       key={stage}
@@ -151,14 +151,14 @@ export default function SleepPage() {
               <div className="grid grid-cols-5 mt-2 gap-2">
                 {STAGE_ORDER.map((stage) => {
                   const dur = mainSession.stage_totals_seconds?.[stage] ?? 0;
-                  const pct = mainSession.asleep_seconds > 0 ? Math.round((dur / mainSession.asleep_seconds) * 100) : 0;
+                  const pct = mainSession.asleep_seconds !== null && mainSession.asleep_seconds > 0 ? Math.round((dur / mainSession.asleep_seconds) * 100) : null;
                   return (
                     <div key={stage} className="text-xs text-center">
                       <div style={{ fontWeight: 600 }}>{STAGE_LABELS[stage]}</div>
                       <div style={{ color: 'var(--text-muted)' }}>
                         {dur > 0 ? formatDuration(dur) : '—'}
                       </div>
-                      <div style={{ color: 'var(--text-subtle)' }}>{dur > 0 ? `${pct}%` : ''}</div>
+                      <div style={{ color: 'var(--text-subtle)' }}>{dur > 0 && pct !== null ? `${pct}%` : ''}</div>
                     </div>
                   );
                 })}

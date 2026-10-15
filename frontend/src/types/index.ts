@@ -18,10 +18,14 @@ export interface StudyConfig {
   start_date: string;
   end_date: string;
   days_total: number;
+  /** IANA timezone of the study; all "local" times and dates are in this zone. */
+  timezone: string;
   data_mode: DataMode;
   freshness: FreshnessInfo;
-  google_connected: boolean;
-  google_configured: boolean;
+  /** null = not reported by the backend (GET /study does not expose it). */
+  google_connected: boolean | null;
+  /** null = not reported by the backend (GET /study does not expose it). */
+  google_configured: boolean | null;
 }
 
 export interface DailySummary {
@@ -99,8 +103,9 @@ export interface SleepSession {
   local_start_time: string;
   end_time: string;
   local_end_time: string;
-  in_bed_seconds: number;
-  asleep_seconds: number;
+  in_bed_seconds: number | null;
+  asleep_seconds: number | null;
+  /** Fraction 0..1 (the backend reports a percentage; converted by the adapter). */
   efficiency: number | null;
   stages: SleepSegment[];
   stage_totals_seconds: Record<SleepStageType, number> | null;
@@ -110,7 +115,6 @@ export interface SleepSession {
 export interface SleepSessionWithSegments {
   date: string;
   sessions: SleepSession[];
-  coverage: CoverageFlags;
 }
 
 export interface StepInterval {
@@ -126,8 +130,11 @@ export interface SyncRun {
   status: 'pending' | 'running' | 'completed' | 'failed';
   started_at: string | null;
   finished_at: string | null;
+  /** Not reported by the backend (always null). */
   records_attempted: number | null;
+  /** Backend `row_count`: rows written by the run. */
   records_succeeded: number | null;
+  /** Not reported by the backend (always null). */
   records_failed: number | null;
   error_message: string | null;
 }
@@ -138,4 +145,12 @@ export interface ImportResult {
   rejected_reasons: Array<{ record_index: number; reason: string }>;
   warnings: string[];
   schema_version_valid: boolean;
+}
+
+export interface Capabilities {
+  legacy_study: boolean;
+  legacy_requested: boolean;
+  legacy_reason: string | null;
+  writes_enabled: boolean;
+  auth_required: boolean;
 }

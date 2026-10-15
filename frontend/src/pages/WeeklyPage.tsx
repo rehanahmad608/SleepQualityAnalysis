@@ -5,6 +5,7 @@ import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 import WeekSelector from '../components/ui/WeekSelector';
 import StatusBadge from '../components/ui/StatusBadge';
+import { getCompletenessTone } from '../utils/status';
 import MetricCard from '../components/ui/MetricCard';
 import StepsBarChart from '../components/charts/StepsBarChart';
 import SleepDurationChart from '../components/charts/SleepDurationChart';
@@ -49,7 +50,7 @@ export default function WeeklyPage() {
           <section className="mb-4">
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <div className="text-sm text-muted">{wQ.data.dates.join(' · ')}</div>
-              <StatusBadge variant={wQ.data.completeness_percent >= 75 ? 'success' : wQ.data.completeness_percent >= 40 ? 'warning' : 'danger'}>
+              <StatusBadge variant={getCompletenessTone(wQ.data.completeness_percent)}>
                 {Math.round(wQ.data.completeness_percent)}% complete
               </StatusBadge>
             </div>

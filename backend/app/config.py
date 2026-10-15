@@ -47,6 +47,24 @@ class Settings(BaseSettings):
     SUPABASE_ANON_KEY: str = ""
     # Server-owned mapping: {"supabase-auth-user-id": ["P001"]}.
     AUTH_PARTICIPANT_ACCESS: str = "{}"
+    # JSON list of Supabase user ids allowed to run legacy write operations.
+    AUTH_ADMIN_USERS: str = "[]"
+
+    # --- Access policy (default-deny) -------------------------------------
+    # "local-dev" marks an isolated developer process; anything else is shared/production.
+    APP_ENV: str = ""
+    # Unauthenticated read access to PARTICIPANT_CODE; honoured only in an isolated
+    # loopback-bound local-dev process (see app/security.py). Never enable on a shared host.
+    DEV_ANONYMOUS_ACCESS: bool = False
+    # Set by the run command/script to the address uvicorn binds to.
+    APP_BIND_HOST: str = ""
+    # Legacy study pages/endpoints: "auto" (needs the complete legacy schema) or "false".
+    LEGACY_STUDY_ENABLED: str = "auto"
+    # Legacy POST /sync and /import. Also requires APP_ENV=local-dev and an admin user.
+    ALLOW_LEGACY_WRITES: bool = False
+
+    # A run still "running" after this long is considered dead and is failed (TIMEOUT).
+    INGESTION_LOCK_TIMEOUT_SECONDS: int = 900
 
     @property
     def cors_origins_list(self) -> List[str]:

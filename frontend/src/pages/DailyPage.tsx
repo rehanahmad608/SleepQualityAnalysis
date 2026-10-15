@@ -172,7 +172,7 @@ export default function DailyPage() {
             <div className="card-subtitle">Main sleep plus any naps</div>
           </div>
           {summaryQ.data?.sleep_efficiency !== null && summaryQ.data?.sleep_efficiency !== undefined && (
-            <StatusBadge variant="success">Efficiency {Math.round(summaryQ.data.sleep_efficiency * 100)}%</StatusBadge>
+            <StatusBadge variant="neutral" icon={false}>Efficiency {Math.round(summaryQ.data.sleep_efficiency * 100)}%</StatusBadge>
           )}
         </div>
         {sleepQ.isLoading && !sleepQ.data && <LoadingState title="Loading sleep sessions…" compact />}
@@ -195,7 +195,7 @@ export default function DailyPage() {
               <div key={ses.session_id} className="card" style={{ padding: 14 }}>
                 <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
                   <div>
-                    <StatusBadge variant={ses.is_main ? 'success' : 'info'}>
+                    <StatusBadge variant={ses.is_main ? 'neutral' : 'info'}>
                       {ses.is_main ? 'Main sleep' : 'Nap'}
                     </StatusBadge>
                     <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>

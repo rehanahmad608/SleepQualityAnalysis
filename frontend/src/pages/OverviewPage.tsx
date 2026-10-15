@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { useStudy, useExportCSV } from '../api/hooks';
-import { apiClient } from '../api/client';
-import type { DailySummary } from '../types';
+import { useStudy, useExportCSV, useAllDailySummaries } from '../api/hooks';
+import { isEmptyDay } from '../api/adapters';
 import { formatBPM, formatDuration, formatSteps, formatStudyDateLabel } from '../utils/format';
 import { getDayOfWeekLabel, getStudyDates } from '../utils/time';
 import LoadingState from '../components/ui/LoadingState';
@@ -11,36 +9,17 @@ import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 import ProvisionalBadge from '../components/ui/ProvisionalBadge';
 import StatusBadge from '../components/ui/StatusBadge';
+import MissingDaysBadge from '../components/ui/MissingDaysBadge';
 import StepsBarChart from '../components/charts/StepsBarChart';
 import SleepDurationChart from '../components/charts/SleepDurationChart';
 import RestingHRTrend from '../components/charts/RestingHRTrend';
 import { DataTable, useChartTableToggle, ChartOrTableToggle } from '../components/ui/DataTable';
 
-function useAllDailySummaries(dates: string[]) {
-  return useQuery({
-    queryKey: ['all-daily-summaries', dates.join(',')],
-    enabled: dates.length > 0,
-    queryFn: async () => {
-      const results = await Promise.all(
-        dates.map(async (d) => {
-          try {
-            return await apiClient.get<DailySummary>('/daily-summary', { date: d });
-          } catch {
-            return null;
-          }
-        })
-      );
-      return results as (DailySummary | null)[];
-    },
-    staleTime: 60_000,
-  });
-}
-
 export default function OverviewPage() {
   const studyQuery = useStudy();
   const study = studyQuery.data;
   const allDates = study ? getStudyDates(study.start_date, study.days_total) : [];
-  const summariesQuery = useAllDailySummaries(allDates);
+  const summariesQuery = useAllDailySummaries(study, allDates);
   const summaries = summariesQuery.data ?? [];
   const exportCSV = useExportCSV();
 
@@ -51,7 +30,10 @@ export default function OverviewPage() {
   const hasAny = summaries.some(
     (s) => s && (s.main_sleep_seconds !== null || s.steps_count !== null || s.resting_hr_bpm !== null)
   );
-  const anyMissing = summaries.some((s) => s === null);
+  // A "missing" day is one the backend answered for and confirmed has no
+  // recorded observations. A failed request is an error state, never a missing day.
+  const missingDays = summaries.filter(isEmptyDay).length;
+  const anyMissing = missingDays > 0;
 
   let content: JSX.Element | null = null;
 
@@ -83,13 +65,26 @@ export default function OverviewPage() {
   }
 
   if (content) {
-    return <div className="page-header mb-4"><div><h1>14-Day Overview</h1><p className="page-subtitle">Full study period at a glance</p></div></div>;
+    return (
+      <div>
+        <div className="page-header mb-4">
+          <div>
+            <h1>14-Day Overview</h1>
+            <p className="page-subtitle">Full study period at a glance</p>
+          </div>
+        </div>
+        {content}
+      </div>
+    );
   }
 
   const totalDays = summaries.length;
   const validSleepDays = summaries.filter((s) => s && s.main_sleep_seconds !== null && !Number.isNaN(s.main_sleep_seconds)).length;
   const validStepsDays = summaries.filter((s) => s && s.steps_count !== null && !Number.isNaN(s.steps_count)).length;
   const validHRDays = summaries.filter((s) => s && s.resting_hr_bpm !== null && !Number.isNaN(s.resting_hr_bpm)).length;
+
+  const coveragePct =
+    totalDays > 0 ? Math.round(((validSleepDays + validStepsDays + validHRDays) / (totalDays * 3)) * 100) : 0;
 
   const avgSleepSec = (() => {
     const vals = summaries.map((s) => s?.main_sleep_seconds).filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
@@ -133,9 +128,9 @@ export default function OverviewPage() {
             {study ? `${study.start_date} → ${study.end_date}` : 'Full study period at a glance'}
           </p>
           <div className="flex gap-2 mt-2 flex-wrap text-sm">
-            <StatusBadge variant="muted">{validSleepDays}/{totalDays} sleep days</StatusBadge>
-            <StatusBadge variant="muted">{validStepsDays}/{totalDays} steps days</StatusBadge>
-            <StatusBadge variant="muted">{validHRDays}/{totalDays} RHR days</StatusBadge>
+            <StatusBadge variant="neutral" icon={false}>{validSleepDays}/{totalDays} sleep days</StatusBadge>
+            <StatusBadge variant="neutral" icon={false}>{validStepsDays}/{totalDays} steps days</StatusBadge>
+            <StatusBadge variant="neutral" icon={false}>{validHRDays}/{totalDays} RHR days</StatusBadge>
           </div>
         </div>
         <div className="page-actions">
@@ -159,10 +154,10 @@ export default function OverviewPage() {
             </div>
           </div>
         </div>
-        <div className="progress-bar mb-2" role="progressbar" aria-label="Study data coverage" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((validSleepDays + validStepsDays + validHRDays) / (totalDays * 3)) * 100)}>
+        <div className="progress-bar mb-2" role="progressbar" aria-label="Study data coverage" aria-valuemin={0} aria-valuemax={100} aria-valuenow={coveragePct}>
           <div
             className="progress-bar-fill"
-            style={{ width: `${Math.round(((validSleepDays + validStepsDays + validHRDays) / (totalDays * 3)) * 100)}%` }}
+            style={{ width: `${coveragePct}%` }}
           />
         </div>
       </section>
@@ -173,7 +168,7 @@ export default function OverviewPage() {
             <div className="card-title">Daily Snapshots</div>
             <div className="card-subtitle">Click any day to open the detailed daily view</div>
           </div>
-          {anyMissing && <StatusBadge variant="warning">{summaries.filter((s) => s === null).length} missing days</StatusBadge>}
+          <MissingDaysBadge missing={missingDays} total={totalDays} />
         </div>
 
         <div className="grid grid-cols-14">
@@ -181,7 +176,7 @@ export default function OverviewPage() {
             const date = allDates[i] ?? '';
             const dayNum = i + 1;
             const dow = getDayOfWeekLabel(date);
-            if (s === null) {
+            if (isEmptyDay(s)) {
               return (
                 <Link key={date} to={`/daily?date=${encodeURIComponent(date)}`} className="date-card-link" aria-label={`Day ${dayNum} ${date} no data`}>
                   <div className="date-card" style={{ borderStyle: 'dashed' }}>
@@ -204,10 +199,10 @@ export default function OverviewPage() {
                     <div className="date-card-metric" title="Main sleep">
                       {s.main_sleep_seconds !== null ? formatDuration(s.main_sleep_seconds) : <span className="date-card-empty">—</span>}
                     </div>
-                    <div className="text-xs" style={{ color: 'var(--success)', fontWeight: 600 }} title="Steps">
+                    <div className="text-xs" style={{ color: 'var(--text)', fontWeight: 600 }} title="Steps">
                       {s.steps_count !== null ? formatSteps(s.steps_count) : '—'}
                     </div>
-                    <div className="text-xs" style={{ color: 'var(--danger)', fontWeight: 600 }} title="Resting HR">
+                    <div className="text-xs" style={{ color: 'var(--text-muted)', fontWeight: 600 }} title="Resting HR">
                       {s.resting_hr_bpm !== null ? `${formatBPM(s.resting_hr_bpm)} bpm` : '—'}
                     </div>
                   </div>

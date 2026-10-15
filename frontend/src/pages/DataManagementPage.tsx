@@ -1,10 +1,12 @@
 import { useRef, useState, useEffect } from 'react';
-import { useImportJSON, useRegenerateDemo, useStartSync, useStudy, useSyncRun } from '../api/hooks';
+import { useCapabilities, useImportJSON, useRegenerateDemo, useStartSync, useStudy, useSyncRun } from '../api/hooks';
 import type { ImportResult, StudyConfig } from '../types';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
 import StatusBadge from '../components/ui/StatusBadge';
+import DataModeBadge from '../components/ui/DataModeBadge';
 import { formatLocalDateTime } from '../utils/format';
+import { getModeTone } from '../utils/status';
 import { DataTable } from '../components/ui/DataTable';
 
 const EXPECTED_SCHEMA_VERSION = 1;
@@ -42,7 +44,29 @@ function validateClientSide(file: File): Promise<{ ok: boolean; parsed?: ImportP
   });
 }
 
-function DataModeCard({ mode, study }: { mode: StudyConfig['data_mode']; study: StudyConfig }) {
+function WritesDisabledNotice() {
+  return (
+    <div className="mt-2">
+      <StatusBadge variant="warning" role="note">
+        Write operations are disabled in this deployment
+      </StatusBadge>
+      <p className="help-text">
+        Importing, syncing and regenerating data are available only in an explicitly enabled local
+        development environment for an administrator.
+      </p>
+    </div>
+  );
+}
+
+function DataModeCard({
+  mode,
+  study,
+  writesEnabled,
+}: {
+  mode: StudyConfig['data_mode'];
+  study: StudyConfig;
+  writesEnabled: boolean;
+}) {
   const regenerateDemo = useRegenerateDemo();
 
   if (mode === 'demo') {
@@ -61,21 +85,22 @@ function DataModeCard({ mode, study }: { mode: StudyConfig['data_mode']; study: 
           Regenerating replaces the in-memory demo set with a fresh random sample.
         </p>
         <div className="mt-4">
+          {!writesEnabled && <WritesDisabledNotice />}
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => regenerateDemo.mutate()}
-            disabled={regenerateDemo.isPending}
+            disabled={regenerateDemo.isPending || !writesEnabled}
           >
             {regenerateDemo.isPending ? 'Regenerating…' : 'Regenerate Demo Data'}
           </button>
           {regenerateDemo.isError && (
-            <div className="text-xs mt-2" style={{ color: 'var(--danger)' }}>
+            <div className="text-xs mt-2" style={{ color: 'var(--badge-danger-text)' }}>
               Failed: {regenerateDemo.error instanceof Error ? regenerateDemo.error.message : String(regenerateDemo.error)}
             </div>
           )}
           {regenerateDemo.isSuccess && (
-            <div className="text-xs mt-2" style={{ color: 'var(--success)' }}>
+            <div className="text-xs mt-2" style={{ color: 'var(--badge-success-text)' }}>
               Demo study regenerated.
             </div>
           )}
@@ -85,13 +110,13 @@ function DataModeCard({ mode, study }: { mode: StudyConfig['data_mode']; study: 
   }
 
   if (mode === 'import') {
-    return <ImportPanel />;
+    return <ImportPanel writesEnabled={writesEnabled} />;
   }
 
-  return <GoogleSyncPanel study={study} />;
+  return <GoogleSyncPanel study={study} writesEnabled={writesEnabled} />;
 }
 
-function ImportPanel() {
+function ImportPanel({ writesEnabled }: { writesEnabled: boolean }) {
   const [dragActive, setDragActive] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [validation, setValidation] = useState<{ ok: boolean; error?: string; rejected?: { record_index: number; reason: string }[] } | null>(null);
@@ -132,7 +157,7 @@ function ImportPanel() {
     e.preventDefault();
     setDragActive(false);
     const f = e.dataTransfer.files?.[0];
-    if (f) setPendingFile(f);
+    if (f && writesEnabled) setPendingFile(f);
   };
 
   const result: ImportResult | undefined = importMutation.data ?? undefined;
@@ -148,8 +173,11 @@ function ImportPanel() {
         </div>
       </div>
 
+      {!writesEnabled && <WritesDisabledNotice />}
       <div
         className={`dropzone ${dragActive ? 'active' : ''}`}
+        aria-disabled={!writesEnabled}
+        style={!writesEnabled ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
         onDragEnter={(e) => {
           e.preventDefault();
           setDragActive(true);
@@ -182,7 +210,7 @@ function ImportPanel() {
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) setPendingFile(f);
+            if (f && writesEnabled) setPendingFile(f);
             e.target.value = '';
           }}
         />
@@ -202,7 +230,7 @@ function ImportPanel() {
             </div>
           )}
           {validation && !validation.ok && (
-            <div className="mt-2" style={{ color: 'var(--danger)' }}>
+            <div className="mt-2" style={{ color: 'var(--badge-danger-text)' }}>
               <div className="font-medium">Client-side validation failed:</div>
               <div className="text-xs mt-1">{validation.error}</div>
               {validation.rejected && validation.rejected.length > 0 && (
@@ -275,7 +303,7 @@ function ImportPanel() {
   );
 }
 
-function GoogleSyncPanel({ study }: { study: StudyConfig }) {
+function GoogleSyncPanel({ study, writesEnabled }: { study: StudyConfig; writesEnabled: boolean }) {
   const startSync = useStartSync();
   const [runId, setRunId] = useState<string | null>(null);
   const syncRun = useSyncRun(runId ?? '');
@@ -289,7 +317,9 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
   const configured = study.google_configured;
   const connected = study.google_connected;
 
-  const statusColor = !configured
+  const statusColor = configured === null || connected === null
+    ? 'warning'
+    : !configured
     ? 'error'
     : !connected
     ? 'warning'
@@ -304,7 +334,7 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
       <div className="card-header">
         <div>
           <div className="card-title flex items-center gap-2">
-            <StatusBadge variant="google">GOOGLE HEALTH MODE</StatusBadge> Google Health Connect sync
+            <DataModeBadge mode="google" googleConfigured={configured} googleConnected={connected} label="GOOGLE HEALTH MODE" /> Google Health Connect sync
           </div>
           <div className="card-subtitle">
             Periodically pulls sleep, steps, and HR samples from Google Health Connect via server-to-server OAuth.
@@ -315,9 +345,17 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
       <div className="sync-status-row" role="status" aria-label="Google Health connection status">
         <span className={`status-indicator ${statusColor}`} aria-hidden="true" />
         <div className="flex-1">
-          {!configured ? (
+          {configured === null || connected === null ? (
             <div>
-              <div className="font-medium" style={{ color: 'var(--danger)' }}>
+              <div className="font-medium">Google Health connection state is not reported by the backend</div>
+              <div className="text-xs text-muted mt-1">
+                The backend does not expose OAuth configuration or authorization status. You can still try to start a
+                sync; the backend will report an error if Google Health is not usable.
+              </div>
+            </div>
+          ) : !configured ? (
+            <div>
+              <div className="font-medium" style={{ color: 'var(--badge-danger-text)' }}>
                 NOT CONFIGURED — requires OAuth project eligibility
               </div>
               <div className="text-xs text-muted mt-1">
@@ -327,7 +365,7 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
             </div>
           ) : !connected ? (
             <div>
-              <div className="font-medium" style={{ color: 'var(--warning)' }}>
+              <div className="font-medium" style={{ color: 'var(--badge-warning-text)' }}>
                 Configured, but not yet authorized
               </div>
               <div className="text-xs text-muted mt-1">
@@ -336,7 +374,7 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
             </div>
           ) : (
             <div>
-              <div className="font-medium" style={{ color: 'var(--success)' }}>
+              <div className="font-medium" style={{ color: 'var(--badge-success-text)' }}>
                 Connected — Google Health authorized
               </div>
               <div className="text-xs text-muted mt-1">
@@ -354,7 +392,7 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
             Last successful sync: {study.freshness?.last_successful_sync ? formatLocalDateTime(study.freshness.last_successful_sync) : 'Never'}
           </div>
           {study.freshness?.is_stale && (
-            <div className="text-xs mt-1" style={{ color: 'var(--warning)' }}>
+            <div className="text-xs mt-1" style={{ color: 'var(--badge-warning-text)' }}>
               Stale: {study.freshness.stale_hours ?? '?'}h since last successful sync
             </div>
           )}
@@ -381,14 +419,13 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
               <div className="text-xs text-muted mt-1 flex gap-3 flex-wrap">
                 <span>Started: {syncRun.data.started_at ? formatLocalDateTime(syncRun.data.started_at) : '—'}</span>
                 <span>Finished: {syncRun.data.finished_at ? formatLocalDateTime(syncRun.data.finished_at) : '—'}</span>
-                <span>
-                  Records: {syncRun.data.records_attempted ?? 0} attempted · {syncRun.data.records_succeeded ?? 0} ok ·{' '}
-                  {syncRun.data.records_failed ?? 0} failed
-                </span>
+                {syncRun.data.records_succeeded !== null && (
+                  <span>Rows written: {syncRun.data.records_succeeded.toLocaleString()}</span>
+                )}
               </div>
             )}
             {syncRun.data?.error_message && (
-              <div className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
+              <div className="text-xs mt-1" style={{ color: 'var(--badge-danger-text)' }}>
                 Error: {syncRun.data.error_message}
               </div>
             )}
@@ -401,12 +438,12 @@ function GoogleSyncPanel({ study }: { study: StudyConfig }) {
           type="button"
           className="btn btn-primary"
           onClick={() => startSync.mutate()}
-          disabled={startSync.isPending || !configured || !connected}
+          disabled={startSync.isPending || !writesEnabled || configured === false || connected === false}
         >
           {startSync.isPending ? 'Starting sync…' : 'Start Sync'}
         </button>
         {startSync.isError && (
-          <span className="text-xs" style={{ color: 'var(--danger)' }}>
+          <span className="text-xs" style={{ color: 'var(--badge-danger-text)' }}>
             Could not start sync: {startSync.error instanceof Error ? startSync.error.message : String(startSync.error)}
           </span>
         )}
@@ -437,6 +474,8 @@ function formatRunStatus(s: string | undefined): string {
 
 export default function DataManagementPage() {
   const studyQuery = useStudy();
+  const capabilities = useCapabilities();
+  const writesEnabled = capabilities.data?.writes_enabled === true;
   const study = studyQuery.data;
 
   return (
@@ -473,7 +512,12 @@ export default function DataManagementPage() {
                 {(['demo', 'import', 'google'] as const).map((m) => (
                   <StatusBadge
                     key={m}
-                    variant={study.data_mode === m ? m : 'muted'}
+                    icon={false}
+                    variant={
+                      study.data_mode === m
+                        ? getModeTone(m, { configured: study.google_configured, connected: study.google_connected })
+                        : 'neutral'
+                    }
                   >
                     {study.data_mode === m ? '● ' : '○ '}
                     {m === 'demo' ? 'DEMO' : m === 'import' ? 'IMPORT' : 'GOOGLE'}
@@ -493,15 +537,18 @@ export default function DataManagementPage() {
               <div>
                 <div className="text-xs text-muted">Active mode</div>
                 <div className="font-medium">
-                  <StatusBadge variant={study.data_mode}>
-                    {study.data_mode.toUpperCase()} MODE
-                  </StatusBadge>
+                  <DataModeBadge
+                    mode={study.data_mode}
+                    googleConfigured={study.google_configured}
+                    googleConnected={study.google_connected}
+                    label={`${study.data_mode.toUpperCase()} MODE`}
+                  />
                 </div>
               </div>
             </div>
           </section>
 
-          <DataModeCard mode={study.data_mode} study={study} />
+          <DataModeCard mode={study.data_mode} study={study} writesEnabled={writesEnabled} />
         </>
       )}
     </div>

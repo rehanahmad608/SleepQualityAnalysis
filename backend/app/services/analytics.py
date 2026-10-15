@@ -174,7 +174,9 @@ def build_daily_summary(
     if existing_daily_resting and local_date.isoformat() in existing_daily_resting:
         resting_bpm = existing_daily_resting[local_date.isoformat()]
 
-    is_provisional = local_date >= date.today()
+    # Provisional until the study-local calendar day has fully ended.
+    study_today = datetime.now(pytz.timezone(study.timezone)).date()
+    is_provisional = local_date >= study_today
     coverage_flags = _coverage_flags(steps, main_sleep_seconds, hr_count)
     data_quality = _determine_data_quality(steps, main_sleep_seconds, hr_count, is_provisional)
 

@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any, List, Optional
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+
+from app.db.types import to_utc
+
+
+def _normalise_instant(value: datetime) -> datetime:
+    """Payload instants are UTC per the import schema; naive values are UTC, offsets are converted."""
+    return to_utc(value)
 
 
 class ImportSleepSegmentV1(BaseModel):
@@ -11,6 +18,11 @@ class ImportSleepSegmentV1(BaseModel):
     end_at: datetime
     stage_label: str
     segment_kind: str = "stage"
+
+    @field_validator("start_at", "end_at")
+    @classmethod
+    def _utc(cls, v: datetime) -> datetime:
+        return _normalise_instant(v)
 
     @model_validator(mode="after")
     def check_order(self) -> "ImportSleepSegmentV1":
@@ -31,6 +43,11 @@ class ImportSleepSessionV1(BaseModel):
     classification_origin: str = "provider"
     segments: List[ImportSleepSegmentV1] = Field(default_factory=list)
 
+    @field_validator("start_at", "end_at")
+    @classmethod
+    def _utc(cls, v: datetime) -> datetime:
+        return _normalise_instant(v)
+
     @model_validator(mode="after")
     def check_order(self) -> "ImportSleepSessionV1":
         if self.end_at <= self.start_at:
@@ -48,6 +65,11 @@ class ImportHeartRateSampleV1(BaseModel):
     observed_at: datetime
     bpm: float
 
+    @field_validator("observed_at")
+    @classmethod
+    def _utc(cls, v: datetime) -> datetime:
+        return _normalise_instant(v)
+
     @model_validator(mode="after")
     def check_bpm(self) -> "ImportHeartRateSampleV1":
         if self.bpm <= 0 or self.bpm > 300:
@@ -61,6 +83,11 @@ class ImportStepIntervalV1(BaseModel):
     start_at: datetime
     end_at: datetime
     step_count: int
+
+    @field_validator("start_at", "end_at")
+    @classmethod
+    def _utc(cls, v: datetime) -> datetime:
+        return _normalise_instant(v)
 
     @model_validator(mode="after")
     def check(self) -> "ImportStepIntervalV1":

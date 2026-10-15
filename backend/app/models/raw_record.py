@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, UUID as SA_UUID
+from sqlalchemy import ForeignKey, Integer, JSON, String, UUID as SA_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.db.types import UTCDateTime
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
@@ -22,8 +23,8 @@ class RawRecord(Base, UUIDMixin, TimestampMixin):
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     resource_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    source_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    source_updated_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime(), nullable=True)
     schema_version: Mapped[str] = mapped_column(String(16), nullable=False, default="1")
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
 

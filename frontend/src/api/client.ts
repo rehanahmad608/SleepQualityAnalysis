@@ -1,4 +1,22 @@
+import { ACCESS_TOKEN_KEY, AUTH_EXPIRED_EVENT } from './authEvents';
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
+
+export { ACCESS_TOKEN_KEY };
+
+function readToken(): string {
+  try {
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+/** The bearer token (if signed in), applied to EVERY request including uploads. */
+export function authHeaders(): Record<string, string> {
+  const token = readToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export interface ApiError {
   status: number;
@@ -15,6 +33,95 @@ export class ApiHttpError extends Error {
     this.name = 'ApiHttpError';
     this.status = status;
     this.detail = detail;
+  }
+}
+
+/** The request never produced an HTTP response (backend down, network, CORS). */
+export class ApiConnectionError extends Error {
+  constructor(message = 'Cannot reach the backend API. Check that the server is running and try again.') {
+    super(message);
+    this.name = 'ApiConnectionError';
+  }
+}
+
+function describeDetail(detail: unknown): string | null {
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail) && detail.length > 0) {
+    const parts = detail
+      .map((d) => {
+        if (typeof d === 'string') return d;
+        if (typeof d === 'object' && d !== null) {
+          const o = d as { msg?: unknown; loc?: unknown };
+          const loc = Array.isArray(o.loc) ? o.loc.join('.') : '';
+          return typeof o.msg === 'string' ? (loc ? `${loc}: ${o.msg}` : o.msg) : null;
+        }
+        return null;
+      })
+      .filter((x): x is string => !!x);
+    if (parts.length > 0) return parts.join('; ');
+  }
+  return null;
+}
+
+/** An expired/revoked session: drop the token and tell the UI to show sign-in again. */
+export { AUTH_EXPIRED_EVENT };
+
+function handleUnauthorized(resp: Response): void {
+  if (resp.status !== 401 || !readToken()) return;
+  try {
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  } catch {
+    // ignore storage failures
+  }
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+}
+
+async function toHttpError(resp: Response): Promise<ApiHttpError> {
+  handleUnauthorized(resp);
+  let message = `HTTP ${resp.status}`;
+  let detail: unknown = undefined;
+  try {
+    const body: unknown = await resp.json();
+    if (typeof body === 'object' && body !== null) {
+      const b = body as { message?: unknown; detail?: unknown };
+      detail = b.detail ?? body;
+      message =
+        (typeof b.message === 'string' && b.message) || describeDetail(b.detail) || message;
+    } else if (typeof body === 'string' && body) {
+      message = body;
+    }
+  } catch {
+    // body was not JSON (e.g. a proxy error page); keep the status-based message
+  }
+  if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
+    message = `Backend unavailable (HTTP ${resp.status}). ${message === `HTTP ${resp.status}` ? '' : message}`.trim();
+  } else if (resp.status >= 500 && message === `HTTP ${resp.status}`) {
+    message = `Server error (HTTP ${resp.status}); the backend may be unavailable.`;
+  }
+  return new ApiHttpError(resp.status, message, detail);
+}
+
+async function send(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e;
+    throw new ApiConnectionError();
+  }
+}
+
+async function parseJson<T>(resp: Response): Promise<T> {
+  const contentType = resp.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new ApiHttpError(
+      resp.status,
+      `Unexpected response type "${contentType || 'unknown'}" from the API (expected JSON).`
+    );
+  }
+  try {
+    return (await resp.json()) as T;
+  } catch {
+    throw new ApiHttpError(resp.status, 'The API returned invalid JSON.');
   }
 }
 
@@ -38,44 +145,21 @@ async function request<T>(
     }
   }
 
-  const resp = await fetch(url, {
+  const resp = await send(url, {
     ...options,
     headers: {
       Accept: 'application/json',
-      ...(sessionStorage.getItem('supabase-access-token') ? { Authorization: `Bearer ${sessionStorage.getItem('supabase-access-token')}` } : {}),
+      ...authHeaders(),
       ...(options.headers ?? {}),
     },
   });
 
   if (!resp.ok) {
-    let message = `HTTP ${resp.status}`;
-    let detail: unknown = undefined;
-    try {
-      const errBody = await resp.json();
-      if (typeof errBody === 'object' && errBody !== null) {
-        const m = (errBody as { message?: string; detail?: unknown }).message;
-        const d = (errBody as { detail?: unknown }).detail;
-        if (typeof m === 'string') message = m;
-        detail = d ?? errBody;
-      } else if (typeof errBody === 'string') {
-        message = errBody;
-      }
-    } catch {
-      try {
-        message = await resp.text();
-      } catch {
-        // ignore
-      }
-    }
-    throw new ApiHttpError(resp.status, message, detail);
+    throw await toHttpError(resp);
   }
-
-  const contentType = resp.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    return (await resp.json()) as T;
-  }
-  return (await resp.text()) as unknown as T;
+  return parseJson<T>(resp);
 }
+
 
 export const apiClient = {
   get<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null>) {
@@ -101,27 +185,15 @@ export const apiClient = {
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
     const form = new FormData();
     form.append('file', file);
-    const resp = await fetch(`${API_BASE}${endpoint}`, {
+    const resp = await send(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: sessionStorage.getItem('supabase-access-token') ? { Authorization: `Bearer ${sessionStorage.getItem('supabase-access-token')}` } : {},
+      headers: authHeaders(),
       body: form,
     });
     if (!resp.ok) {
-      let message = `HTTP ${resp.status}`;
-      let detail: unknown = undefined;
-      try {
-        const errBody = await resp.json();
-        if (typeof errBody === 'object' && errBody !== null) {
-          const m = (errBody as { message?: string }).message;
-          if (typeof m === 'string') message = m;
-          detail = errBody;
-        }
-      } catch {
-        // ignore
-      }
-      throw new ApiHttpError(resp.status, message, detail);
+      throw await toHttpError(resp);
     }
-    return (await resp.json()) as T;
+    return parseJson<T>(resp);
   },
   getDownloadUrl(endpoint: string): string {
     return `${API_BASE}${endpoint}`;

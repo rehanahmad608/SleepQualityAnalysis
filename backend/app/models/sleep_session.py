@@ -4,9 +4,10 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, UUID as SA_UUID
+from sqlalchemy import Date, ForeignKey, Integer, String, UniqueConstraint, UUID as SA_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.db.types import UTCDateTime
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
@@ -24,8 +25,8 @@ class SleepSession(Base, UUIDMixin, TimestampMixin):
     )
     provider_session_key: Mapped[str] = mapped_column(String(255), nullable=False)
     source_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
-    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    start_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)
+    end_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     wake_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     asleep_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     in_bed_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

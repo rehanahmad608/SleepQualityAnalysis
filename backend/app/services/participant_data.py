@@ -2,6 +2,7 @@
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy import text
+from app.services.structured_columns import column_name
 
 
 def hour_filter(alias,period):
@@ -61,7 +62,6 @@ def dashboard_data(db,code,start,end,fmt,period):
     resting=rows(f'''SELECT r.study_date,avg(r.{fmt}_daily_resting_heart_rate_beats_per_minute) AS resting_bpm
        FROM health_analysis_test.resting_heart_rate r WHERE {base('r')} GROUP BY r.study_date''')
     # Column name is bounded by the schema generator's PostgreSQL identifier rules.
-    from build_structured_test_db import column_name
     hrv_column=fmt+'_'+column_name('heartRateVariability.rootMeanSquareOfSuccessiveDifferencesMilliseconds')
     hrv=rows(f'''SELECT h.study_date,avg(h."{hrv_column}") AS hrv_rmssd_ms,count(*) AS hrv_samples
        FROM health_analysis_test.hrv h WHERE {base('h')} AND {hour_filter('h',period)} GROUP BY h.study_date''')

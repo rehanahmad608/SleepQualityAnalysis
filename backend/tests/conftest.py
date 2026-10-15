@@ -1,5 +1,30 @@
 from __future__ import annotations
 
+import os
+
+# Isolate the test process BEFORE the application is imported: never read a
+# developer's backend/.env database URL or Supabase/Auth settings, never reach a
+# shared database. Environment variables take priority over the .env file.
+for _key, _value in {
+    "DATABASE_URL": "sqlite:///:memory:",
+    "MIGRATION_DATABASE_URL": "",
+    "SUPABASE_URL": "",
+    "SUPABASE_ANON_KEY": "",
+    "AUTH_PARTICIPANT_ACCESS": "{}",
+    "AUTH_ADMIN_USERS": "[]",
+    "APP_ENV": "",
+    "DEV_ANONYMOUS_ACCESS": "false",
+    "APP_BIND_HOST": "",
+    "LEGACY_STUDY_ENABLED": "auto",
+    "ALLOW_LEGACY_WRITES": "false",
+    "PARTICIPANT_CODE": "P001",
+}.items():
+    os.environ[_key] = _value
+for _marker in ("VERCEL", "VERCEL_ENV", "VERCEL_URL", "RENDER", "FLY_APP_NAME",
+                "KUBERNETES_SERVICE_HOST", "WEBSITE_SITE_NAME", "DYNO", "K_SERVICE",
+                "AWS_LAMBDA_FUNCTION_NAME", "AWS_EXECUTION_ENV", "RAILWAY_ENVIRONMENT", "NETLIFY"):
+    os.environ.pop(_marker, None)
+
 from datetime import date
 from typing import Generator
 
@@ -89,3 +114,27 @@ def seeded_demo(db_session, study_start):
     assert run.status == "success", f"Seeding failed: {run.error_code} {run.error_detail}"
     db_session.expire_all()
     return run, stats
+
+
+@pytest.fixture(autouse=True)
+def _security_defaults(monkeypatch):
+    """Tests exercise application logic as an authorised participant and admin.
+
+    Authentication itself is covered by dedicated tests that call the real
+    dependency functions (tests/test_access_policy.py).
+    """
+    from app.api.v1 import participant_data as pd
+    from app.main import app as _app
+    from app.services.legacy_schema import clear_cache
+
+    clear_cache()
+    pd.clear_token_cache()
+    identity = pd.Identity(user_id="test-admin", participants=(_settings.PARTICIPANT_CODE,))
+    monkeypatch.setattr(_settings, "APP_ENV", "local-dev")
+    monkeypatch.setattr(_settings, "ALLOW_LEGACY_WRITES", True)
+    monkeypatch.setattr(_settings, "AUTH_ADMIN_USERS", '["test-admin"]')
+    _app.dependency_overrides[pd.allowed_participants] = lambda: [_settings.PARTICIPANT_CODE]
+    _app.dependency_overrides[pd.current_identity] = lambda: identity
+    yield
+    _app.dependency_overrides.pop(pd.allowed_participants, None)
+    _app.dependency_overrides.pop(pd.current_identity, None)

@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, UniqueConstraint, UUID as SA_UUID
+from sqlalchemy import Float, ForeignKey, String, UniqueConstraint, UUID as SA_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.db.types import UTCDateTime
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
@@ -24,7 +25,7 @@ class HeartRateSample(Base, UUIDMixin, TimestampMixin):
     )
     provider_sample_key: Mapped[str] = mapped_column(String(255), nullable=False)
     source_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    observed_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)
     bpm: Mapped[float] = mapped_column(Float, nullable=False)
     raw_record_id: Mapped[Optional[UUID]] = mapped_column(
         SA_UUID(as_uuid=True),

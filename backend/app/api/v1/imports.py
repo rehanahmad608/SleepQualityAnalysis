@@ -8,11 +8,12 @@ from sqlalchemy.orm import Session
 import json
 
 from app.api.deps import get_db, get_current_participant_and_study
+from app.api.v1.participant_data import require_legacy_write
 from app.config import settings
 from app.models.study import Study
 from app.schemas.imports import ImportPayloadV1, ImportResponse, ImportResultStats
 from app.providers.json_importer import validate_import_json
-from app.services.ingestion import run_import_ingestion
+from app.services.ingestion import IngestionAlreadyRunning, run_import_ingestion
 
 
 router = APIRouter(prefix="/import")
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/import")
 MAX_BYTES = 10 * 1024 * 1024
 
 
-@router.post("", response_model=ImportResponse)
+@router.post("", response_model=ImportResponse, dependencies=[Depends(require_legacy_write)])
 async def import_json(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -70,13 +71,16 @@ async def import_json(
             study.calculation_version,
             payload,
         )
+        failed_detail = [run.error_detail] if run.status != "success" and run.error_detail else []
         return ImportResponse(
             success=(run.status == "success"),
             run_id=str(run.id),
-            validation_errors=[],
+            validation_errors=failed_detail,
             stats=stats,
             message=f"Import complete. Status: {run.status}",
         )
+    except IngestionAlreadyRunning as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:  # noqa: BLE001
         return ImportResponse(
             success=False,

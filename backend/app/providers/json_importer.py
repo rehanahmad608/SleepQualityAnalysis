@@ -17,6 +17,7 @@ from app.models.sleep_segment import SleepSegment
 from app.models.sleep_session import SleepSession
 from app.models.steps import StepInterval
 from app.models.study import Study
+from app.services.normalization import ams_local_date
 from app.schemas.imports import (
     ImportHeartRateSampleV1,
     ImportPayloadV1,
@@ -43,6 +44,16 @@ def _payload_hash(payload_dict: dict) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _is_unchanged(ctx: ImportContext, raw_record_id, payload_hash: str) -> bool:
+    """True when the stored entity was last written from a payload with this exact hash."""
+    if raw_record_id is None:
+        return False
+    current = (
+        ctx.db.query(RawRecord.payload_hash).filter(RawRecord.id == raw_record_id).scalar()
+    )
+    return current == payload_hash
+
+
 def _store_raw_record(ctx: ImportContext, resource_key: str, payload_obj: Any, fetched_at, source_updated_at=None) -> RawRecord:
     payload_dict = payload_obj if isinstance(payload_obj, dict) else json.loads(json.dumps(payload_obj, default=str))
     rr = RawRecord(
@@ -60,6 +71,20 @@ def _store_raw_record(ctx: ImportContext, resource_key: str, payload_obj: Any, f
     return rr
 
 
+def _add_segments(ctx: ImportContext, session_id, segments) -> None:
+    for seg in segments:
+        ctx.db.add(
+            SleepSegment(
+                sleep_session_id=session_id,
+                segment_key=seg.segment_key,
+                start_at=seg.start_at,
+                end_at=seg.end_at,
+                stage_label=seg.stage_label,
+                segment_kind=seg.segment_kind,
+            )
+        )
+
+
 def upsert_sleep_session(
     ctx: ImportContext,
     s: ImportSleepSessionV1,
@@ -73,7 +98,14 @@ def upsert_sleep_session(
         )
         .one_or_none()
     )
-    raw = _store_raw_record(ctx, f"sleep:{s.provider_session_key}", s.model_dump(mode="json"), fetched_at)
+    payload_dict = s.model_dump(mode="json")
+    if existing is not None and _is_unchanged(ctx, existing.raw_record_id, _payload_hash(payload_dict)):
+        ctx.stats.sleep_sessions_duplicate += 1
+        return
+    # Wake date is the study-local calendar date of the end instant (overnight sessions
+    # belong to the morning they end on), unless the payload states it explicitly.
+    wake_date = s.wake_date or ams_local_date(s.end_at, ctx.study.timezone)
+    raw = _store_raw_record(ctx, f"sleep:{s.provider_session_key}", payload_dict, fetched_at)
     if existing is None:
         session = SleepSession(
             study_id=ctx.study.id,
@@ -81,7 +113,7 @@ def upsert_sleep_session(
             source_id=s.source_id,
             start_at=s.start_at,
             end_at=s.end_at,
-            wake_date=s.wake_date or s.end_at.date(),
+            wake_date=wake_date,
             asleep_seconds=s.asleep_seconds,
             in_bed_seconds=s.in_bed_seconds,
             is_main=bool(s.is_main),
@@ -90,54 +122,21 @@ def upsert_sleep_session(
         )
         ctx.db.add(session)
         ctx.db.flush()
-        for seg in s.segments:
-            ctx.db.add(
-                SleepSegment(
-                    sleep_session_id=session.id,
-                    segment_key=seg.segment_key,
-                    start_at=seg.start_at,
-                    end_at=seg.end_at,
-                    stage_label=seg.stage_label,
-                    segment_kind=seg.segment_kind,
-                )
-            )
-        ctx.stats.sleep_sessions_upserted += 1
+        _add_segments(ctx, session.id, s.segments)
     else:
-        existing_raw = (
-            ctx.db.query(RawRecord)
-            .filter(
-                RawRecord.resource_key == f"sleep:{s.provider_session_key}",
-                RawRecord.payload_hash == raw.payload_hash,
-            )
-            .order_by(RawRecord.created_at.desc())
-            .first()
-        )
-        if existing_raw is not None:
-            ctx.stats.sleep_sessions_duplicate += 1
-            return
         existing.start_at = s.start_at
         existing.end_at = s.end_at
-        existing.wake_date = s.wake_date or s.end_at.date()
+        existing.wake_date = wake_date
         existing.asleep_seconds = s.asleep_seconds
         existing.in_bed_seconds = s.in_bed_seconds
         existing.is_main = bool(s.is_main)
         existing.classification_origin = s.classification_origin
         existing.raw_record_id = raw.id
-        for old in existing.segments:
+        for old in list(existing.segments):
             ctx.db.delete(old)
         ctx.db.flush()
-        for seg in s.segments:
-            ctx.db.add(
-                SleepSegment(
-                    sleep_session_id=existing.id,
-                    segment_key=seg.segment_key,
-                    start_at=seg.start_at,
-                    end_at=seg.end_at,
-                    stage_label=seg.stage_label,
-                    segment_kind=seg.segment_kind,
-                )
-            )
-        ctx.stats.sleep_sessions_upserted += 1
+        _add_segments(ctx, existing.id, s.segments)
+    ctx.stats.sleep_sessions_upserted += 1
 
 
 def upsert_heart_rate_sample(
@@ -153,7 +152,11 @@ def upsert_heart_rate_sample(
         )
         .one_or_none()
     )
-    raw = _store_raw_record(ctx, f"hr:{hr.provider_sample_key}", hr.model_dump(mode="json"), fetched_at)
+    payload_dict = hr.model_dump(mode="json")
+    if existing is not None and _is_unchanged(ctx, existing.raw_record_id, _payload_hash(payload_dict)):
+        ctx.stats.heart_rate_samples_duplicate += 1
+        return
+    raw = _store_raw_record(ctx, f"hr:{hr.provider_sample_key}", payload_dict, fetched_at)
     if existing is None:
         ctx.db.add(
             HeartRateSample(
@@ -165,23 +168,11 @@ def upsert_heart_rate_sample(
                 raw_record_id=raw.id,
             )
         )
-        ctx.stats.heart_rate_samples_upserted += 1
     else:
-        existing_raw = (
-            ctx.db.query(RawRecord)
-            .filter(
-                RawRecord.resource_key == f"hr:{hr.provider_sample_key}",
-                RawRecord.payload_hash == raw.payload_hash,
-            )
-            .first()
-        )
-        if existing_raw is not None:
-            ctx.stats.heart_rate_samples_duplicate += 1
-            return
         existing.observed_at = hr.observed_at
         existing.bpm = hr.bpm
         existing.raw_record_id = raw.id
-        ctx.stats.heart_rate_samples_upserted += 1
+    ctx.stats.heart_rate_samples_upserted += 1
 
 
 def upsert_step_interval(
@@ -197,7 +188,11 @@ def upsert_step_interval(
         )
         .one_or_none()
     )
-    raw = _store_raw_record(ctx, f"steps:{si.provider_interval_key}", si.model_dump(mode="json"), fetched_at)
+    payload_dict = si.model_dump(mode="json")
+    if existing is not None and _is_unchanged(ctx, existing.raw_record_id, _payload_hash(payload_dict)):
+        ctx.stats.step_intervals_duplicate += 1
+        return
+    raw = _store_raw_record(ctx, f"steps:{si.provider_interval_key}", payload_dict, fetched_at)
     if existing is None:
         ctx.db.add(
             StepInterval(
@@ -210,24 +205,12 @@ def upsert_step_interval(
                 raw_record_id=raw.id,
             )
         )
-        ctx.stats.step_intervals_upserted += 1
     else:
-        existing_raw = (
-            ctx.db.query(RawRecord)
-            .filter(
-                RawRecord.resource_key == f"steps:{si.provider_interval_key}",
-                RawRecord.payload_hash == raw.payload_hash,
-            )
-            .first()
-        )
-        if existing_raw is not None:
-            ctx.stats.step_intervals_duplicate += 1
-            return
         existing.start_at = si.start_at
         existing.end_at = si.end_at
         existing.step_count = si.step_count
         existing.raw_record_id = raw.id
-        ctx.stats.step_intervals_upserted += 1
+    ctx.stats.step_intervals_upserted += 1
 
 
 def execute_import_transaction(

@@ -1,5 +1,6 @@
 import { addDays, differenceInDays, format, isAfter, isBefore, parseISO } from 'date-fns';
 import type { StudyConfig } from '../types';
+import { formatLocalTime } from './format';
 
 export function getStudyDates(startDate: string, days = 14): string[] {
   const start = parseISO(startDate);
@@ -53,5 +54,5 @@ export function getDayOfWeekLabel(dateISO: string): string {
 }
 
 export function formatHourLocal(iso: string): string {
-  return format(new Date(iso), 'HH:mm');
+  return formatLocalTime(iso);
 }

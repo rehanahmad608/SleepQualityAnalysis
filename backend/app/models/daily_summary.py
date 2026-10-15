@@ -4,9 +4,10 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, JSON, String, UniqueConstraint, UUID as SA_UUID
+from sqlalchemy import Date, Float, ForeignKey, Integer, JSON, String, UniqueConstraint, UUID as SA_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.db.types import UTCDateTime
 from app.models.base import Base, TimestampMixin
 
 
@@ -33,6 +34,6 @@ class DailySummary(Base, TimestampMixin):
     is_provisional: Mapped[bool] = mapped_column(nullable=False, default=False)
     data_quality: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    calculated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
     study: Mapped["Study"] = relationship("Study", back_populates="daily_summaries")

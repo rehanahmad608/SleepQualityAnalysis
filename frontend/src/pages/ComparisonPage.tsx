@@ -2,6 +2,7 @@ import { useComparison } from '../api/hooks';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
 import StatusBadge from '../components/ui/StatusBadge';
+import { getCompletenessTone } from '../utils/status';
 import MetricCard from '../components/ui/MetricCard';
 import { DataTable } from '../components/ui/DataTable';
 import {
@@ -102,7 +103,7 @@ function ComparisonWeekCard({
           <div className="card-title">{weekLabel}</div>
           <div className="card-subtitle">{dateRange}</div>
         </div>
-        <StatusBadge variant={completeness >= 75 ? 'success' : completeness >= 40 ? 'warning' : 'danger'}>
+        <StatusBadge variant={getCompletenessTone(completeness)}>
           {Math.round(completeness)}% complete
         </StatusBadge>
       </div>

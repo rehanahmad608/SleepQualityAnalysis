@@ -7,10 +7,15 @@ import WeeklyPage from './pages/WeeklyPage';
 import ComparisonPage from './pages/ComparisonPage';
 import DataManagementPage from './pages/DataManagementPage';
 import ParticipantDataPage from './pages/ParticipantDataPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 export default function App() {
   return (
     <Routes>
+      {/* Authentication pages render outside the dashboard layout: no study/participant requests. */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<Layout />}>
         <Route index element={<ParticipantDataPage />} />
         <Route path="/participant-data" element={<ParticipantDataPage />} />

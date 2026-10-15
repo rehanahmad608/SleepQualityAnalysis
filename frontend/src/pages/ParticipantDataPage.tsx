@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link, useInRouterContext } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar } from 'recharts';
 import { apiClient } from '../api/client';
+import { ACCESS_TOKEN_KEY, AUTH_EXPIRED_EVENT } from '../api/authEvents';
+import { AuthError, signInWithPassword } from '../auth/supabaseAuth';
 import MetricCard from '../components/ui/MetricCard';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
+import MissingDaysBadge from '../components/ui/MissingDaysBadge';
+import StatusBadge from '../components/ui/StatusBadge';
 import './participantData.css';
 
 interface Participant { participant_code: string; timezone: string; start_date: string; end_date: string; default_date?: string }
@@ -20,12 +25,22 @@ interface Dashboard {
 const number = (value: number | null | undefined, digits = 1) => value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: digits });
 const localTime = (value: string) => new Date(value).toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+function ForgotPasswordLink() {
+  // Plain anchor when rendered outside a router (isolated component tests).
+  return useInRouterContext() ? <Link to="/forgot-password">Forgot password?</Link> : <a href="/forgot-password">Forgot password?</a>;
+}
+
 export default function ParticipantDataPage({ initialView = 'daily', initialPeriod = 'all', title = 'Participant Data' }: { initialView?: 'daily' | 'weekly'; initialPeriod?: 'all' | 'day' | 'night'; title?: string }) {
   const queryClient = useQueryClient();
-  const [token, setToken] = useState(sessionStorage.getItem('supabase-access-token') || '');
+  const [token, setToken] = useState(sessionStorage.getItem(ACCESS_TOKEN_KEY) || '');
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(''); const [signingIn, setSigningIn] = useState(false);
   const authConfigured = !!import.meta.env.VITE_SUPABASE_URL;
+  useEffect(() => {
+    const onExpired = () => { setToken(''); queryClient.clear(); };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, [queryClient]);
   const [code, setCode] = useState(''); const [selectedDate, setDate] = useState('');
   const [mode, setMode] = useState<'daily' | 'weekly'>(initialView);
   const [period, setPeriod] = useState<string>(initialPeriod); const [dataFormat, setFormat] = useState('json');
@@ -41,19 +56,18 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
   async function signIn(event: React.FormEvent) {
     event.preventDefault(); setSigningIn(true); setLoginError('');
     try {
-      const result = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY }, body: JSON.stringify({ email, password }) });
-      const body = await result.json();
-      if (!result.ok || !body.access_token) throw new Error('Sign-in failed. Check your email and password.');
-      sessionStorage.setItem('supabase-access-token', body.access_token); setToken(body.access_token); setPassword('');
+      const accessToken = await signInWithPassword(email, password);
+      setToken(accessToken); setPassword('');
       queryClient.clear();
-    } catch (error) { setLoginError(error instanceof Error ? error.message : 'Sign-in failed.'); }
+    } catch (error) { setLoginError(error instanceof AuthError ? error.message : 'Sign-in failed.'); }
     finally { setSigningIn(false); }
   }
-  function signOut() { sessionStorage.removeItem('supabase-access-token'); setToken(''); queryClient.clear(); }
+  function signOut() { sessionStorage.removeItem(ACCESS_TOKEN_KEY); setToken(''); queryClient.clear(); }
   if (authConfigured && !token) return <section className="participant-data"><h1>Sign in</h1><p>View the participant data shared with your account.</p><form className="participant-login" onSubmit={signIn}>
     <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" /></label>
     <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" /></label>
     <button className="btn btn-primary" disabled={signingIn}>{signingIn ? 'Signing in…' : 'Sign in'}</button>{loginError && <p role="alert">{loginError}</p>}
+    <p className="text-sm"><ForgotPasswordLink /></p>
   </form></section>;
   return <section className="participant-data">
     <div className="page-header"><div><h1>{title}</h1><p className="page-subtitle">Imported health measurements and questionnaire responses · Europe/Amsterdam</p></div>{authConfigured && <button className="btn" onClick={signOut}>Sign out</button>}</div>
@@ -73,6 +87,18 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
       {data.isError && <ErrorState title="Could not load measurements" errorMessage={data.error instanceof Error ? data.error.message : undefined} retry={() => { void data.refetch(); }} />}
       {data.data && <>
         <p className="text-sm">Showing {data.data.start_date} to {data.data.end_date} {data.isFetching && '· Updating…'}</p>
+        {data.data.days.length > 0 && (
+          <div className="participant-status" aria-label="Data coverage">
+            {/* Display only: derived from fields the API already returns; no calculation changes. */}
+            <MissingDaysBadge
+              missing={data.data.days.filter(d => d.samples === 0 && d.steps == null && d.sleep_hours == null && d.resting_bpm == null && d.hrv_rmssd_ms == null).length}
+              total={data.data.days.length}
+            />
+            {data.data.summary.excluded_step_intervals > 0
+              ? <StatusBadge variant="warning">{data.data.summary.excluded_step_intervals} step intervals excluded</StatusBadge>
+              : <StatusBadge variant="neutral" icon={false}>No step intervals excluded</StatusBadge>}
+          </div>
+        )}
         <div className="participant-metrics">
           <MetricCard label="Observed mean heart rate" value={number(data.data.summary.mean_bpm)} units="bpm" sampleCount={data.data.summary.heart_rate_samples} />
           <MetricCard label="Nonoverlapping steps" value={number(data.data.summary.steps, 0)} units="steps" footer={`${data.data.summary.excluded_step_intervals} intervals excluded`} />

@@ -1,6 +1,7 @@
 .participant-filters { display:flex; flex-wrap:wrap; gap:16px; padding:18px 0; }
 .participant-filters label,.participant-login label { display:flex; flex-direction:column; gap:6px; font-size:0.85rem; font-weight:600; }
-.participant-filters input,.participant-filters select,.participant-login input { padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:white; color:var(--text); }
+.participant-filters input,.participant-filters select,.participant-login input { padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:white; color:#000; color-scheme:light; }
+.participant-filters select option { background:#fff; color:#000; }
 .participant-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:20px 0; }
 .participant-chart { background:white; border:1px solid var(--border); border-radius:12px; padding:20px; margin:20px 0; }
 .participant-data h2 { margin:24px 0 12px; font-size:1.1rem; }

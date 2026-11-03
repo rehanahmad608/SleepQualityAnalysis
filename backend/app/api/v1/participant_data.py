@@ -78,7 +78,10 @@ def current_identity(authorization: str | None = Header(default=None), request: 
     # No Auth configured: only the explicit isolated local-development mode may proceed.
     if request is not None and anonymous_request_allowed(
             request.client.host if request.client else None, dict(request.headers)):
-        return Identity(user_id=None, participants=(settings.PARTICIPANT_CODE,), anonymous=True)
+        codes=(settings.PARTICIPANT_CODE,)
+        if settings.DEV_DEMO_PARTICIPANT_CODE:
+            codes+=(settings.DEV_DEMO_PARTICIPANT_CODE,)
+        return Identity(user_id=None, participants=codes, anonymous=True)
     if settings.DEV_ANONYMOUS_ACCESS:
         raise HTTPException(401, 'Sign in to view participant data.')
     raise HTTPException(503, 'Configure Supabase Auth before publishing participant data.')
@@ -123,10 +126,22 @@ def participants(db: Session=Depends(get_db), allowed: list[str]=Depends(allowed
                     UNION ALL SELECT study_date FROM health_analysis_test.evening_responses WHERE participant_code=:code
                 ) records'''),{'code':code}).mappings().one()
                 default_date=db.scalar(text('SELECT min(study_date) FROM health_analysis_test.heart_rate WHERE participant_code=:code'),{'code':code})
-                result.append({**participant,**bounds,'default_date':default_date or bounds['start_date']})
+                demo=demo_info(db,code)
+                result.append({**participant,**bounds,'default_date':default_date or bounds['start_date'],'is_demo':bool(demo),'demo':demo})
         return result
     except SQLAlchemyError:
         raise HTTPException(503,'Structured participant data is unavailable. Check database setup.')
+
+
+def demo_info(db,code):
+    if not code.endswith('_DEMO'):
+        return None
+    if not db.scalar(text("SELECT to_regclass('health_analysis_test.demo_datasets')")):
+        return None
+    info=db.execute(text('SELECT description,start_date,end_date,source_participant FROM health_analysis_test.demo_datasets WHERE participant_code=:code'),{'code':code}).mappings().first()
+    if not info:
+        return None
+    return {**info,'day_sources':[dict(r) for r in db.execute(text('SELECT target_date,source_date,repeated_day FROM health_analysis_test.demo_day_sources WHERE participant_code=:code ORDER BY target_date'),{'code':code}).mappings()]}
 
 
 def get_data(code,start,end,fmt,period,db,allowed):
@@ -138,7 +153,11 @@ def get_data(code,start,end,fmt,period,db,allowed):
         exists=db.scalar(text('SELECT 1 FROM health_analysis_test.participants WHERE participant_code=:code'),{'code':code})
         if not exists:
             raise HTTPException(404,'Participant not found.')
-        return dashboard_data(db,code,start,end,fmt,period)
+        result=dashboard_data(db,code,start,end,fmt,period)
+        result['demo']=demo_info(db,code)
+        if result['demo']:
+            result['notes'].insert(0,result['demo']['description'])
+        return result
     except SQLAlchemyError:
         raise HTTPException(503,'Participant data is temporarily unavailable.')
 

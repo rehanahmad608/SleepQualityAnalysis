@@ -12,7 +12,8 @@ import MissingDaysBadge from '../components/ui/MissingDaysBadge';
 import StatusBadge from '../components/ui/StatusBadge';
 import './participantData.css';
 
-interface Participant { participant_code: string; timezone: string; start_date: string; end_date: string; default_date?: string }
+interface DemoInfo { description: string; day_sources: { target_date: string; source_date: string; repeated_day: boolean }[] }
+interface Participant { participant_code: string; timezone: string; start_date: string; end_date: string; default_date?: string; is_demo?: boolean; demo?: DemoInfo }
 interface Day { date: string; mean_bpm: number | null; samples: number; steps: number | null; sleep_hours: number | null; resting_bpm: number | null; hrv_rmssd_ms: number | null; excluded_intervals: number }
 interface Response { study_date: string; submitted_at: string; energy: number; sleep_quality?: number; bedtime?: string; fell_asleep_time?: string; last_meal_time?: string; productivity_original?: string; productive_hours?: number | null }
 interface Dashboard {
@@ -21,6 +22,7 @@ interface Dashboard {
   morning_responses: Response[]; evening_responses: Response[];
   summary: { mean_bpm: number | null; heart_rate_samples: number; steps: number | null; excluded_step_intervals: number; mean_sleep_hours: number | null; valid_sleep_days: number };
   notes: string[];
+  demo?: DemoInfo | null;
 }
 const number = (value: number | null | undefined, digits = 1) => value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: digits });
 const localTime = (value: string) => new Date(value).toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -41,8 +43,9 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, [queryClient]);
-  const [code, setCode] = useState(''); const [selectedDate, setDate] = useState('');
-  const [mode, setMode] = useState<'daily' | 'weekly'>(initialView);
+  const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get('participant') || '');
+  const [selectedDate, setDate] = useState(() => new URLSearchParams(window.location.search).get('date') || '');
+  const [mode, setMode] = useState<'daily' | 'weekly' | 'fortnight'>(() => new URLSearchParams(window.location.search).get('view') === 'fortnight' ? 'fortnight' : initialView);
   const [period, setPeriod] = useState<string>(initialPeriod); const [dataFormat, setFormat] = useState('json');
   const participants = useQuery({ queryKey: ['structured-participants', token], queryFn: () => apiClient.get<Participant[]>('/participants'), enabled: !authConfigured || !!token, retry: false });
   const selected = participants.data?.find(p => p.participant_code === code) || participants.data?.[0];
@@ -50,7 +53,13 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
   const day = selectedDate || selected?.default_date || selected?.start_date || '';
   const data = useQuery({
     queryKey: ['participant-data', token, participantCode, mode, day, period, dataFormat],
-    queryFn: () => apiClient.get<Dashboard>(`/participants/${encodeURIComponent(participantCode)}/${mode}`, { [mode === 'daily' ? 'date' : 'week_start']: day, period, format: dataFormat }),
+    queryFn: () => {
+      if (mode === 'fortnight') {
+        const end = new Date(`${day}T00:00:00Z`); end.setUTCDate(end.getUTCDate() + 13);
+        return apiClient.get<Dashboard>(`/participants/${encodeURIComponent(participantCode)}/range`, { start_date: day, end_date: end.toISOString().slice(0, 10), period, format: dataFormat });
+      }
+      return apiClient.get<Dashboard>(`/participants/${encodeURIComponent(participantCode)}/${mode}`, { [mode === 'daily' ? 'date' : 'week_start']: day, period, format: dataFormat });
+    },
     enabled: !!participantCode && !!day && (!authConfigured || !!token), retry: false,
   });
   async function signIn(event: React.FormEvent) {
@@ -70,18 +79,19 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
     <p className="text-sm"><ForgotPasswordLink /></p>
   </form></section>;
   return <section className="participant-data">
-    <div className="page-header"><div><h1>{title}</h1><p className="page-subtitle">Imported health measurements and questionnaire responses · Europe/Amsterdam</p></div>{authConfigured && <button className="btn" onClick={signOut}>Sign out</button>}</div>
+    <div className="page-header"><div><h1>{selected?.is_demo ? 'Participant Data v2' : title}</h1><p className="page-subtitle">Imported health measurements and questionnaire responses · Europe/Amsterdam</p></div>{authConfigured && <button className="btn" onClick={signOut}>Sign out</button>}</div>
     {participants.isLoading && <LoadingState title="Loading participants…" />}
     {participants.isError && <ErrorState title="Could not load participants" errorMessage={participants.error instanceof Error ? participants.error.message : undefined} retry={() => { void participants.refetch(); }} />}
     {participants.data?.length === 0 && <p>No participants have been shared with this account.</p>}
     {selected && <>
       <div className="participant-filters">
-        <label>Participant<select value={participantCode} onChange={e => { setCode(e.target.value); setDate(''); }}>{participants.data?.map(p => <option key={p.participant_code}>{p.participant_code}</option>)}</select></label>
-        <label>View<select value={mode} onChange={e => setMode(e.target.value as 'daily' | 'weekly')}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
-        <label>{mode === 'daily' ? 'Date' : 'Seven days starting'}<input type="date" value={day} onChange={e => setDate(e.target.value)} /></label>
+        <label>Participant<select value={participantCode} onChange={e => { setCode(e.target.value); setDate(''); }}>{participants.data?.map(p => <option key={p.participant_code} value={p.participant_code}>{p.is_demo ? 'Participant Data v2' : p.participant_code}</option>)}</select></label>
+        <label>View<select value={mode} onChange={e => setMode(e.target.value as 'daily' | 'weekly' | 'fortnight')}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="fortnight">14 days</option></select></label>
+        <label>{mode === 'daily' ? 'Date' : mode === 'weekly' ? 'Seven days starting' : 'Fourteen days starting'}<input type="date" value={day} onChange={e => setDate(e.target.value)} /></label>
         <label>Time of day<select value={period} onChange={e => setPeriod(e.target.value)}><option value="all">Full day</option><option value="day">Day · 06:00–22:00</option><option value="night">Night · before 06:00 / after 22:00</option></select></label>
         <label>Data source<select value={dataFormat} onChange={e => setFormat(e.target.value)}><option value="json">JSON export</option><option value="csv">CSV export</option></select></label>
       </div>
+      {selected.is_demo && <p className="text-sm text-muted" role="note">Demo dataset</p>}
       <p className="text-sm text-muted">Available records: {selected.start_date} to {selected.end_date}. Day/night filters apply to heart rate, HRV and steps. Sleep uses its wake date.</p>
       {data.isLoading && <LoadingState title="Loading measurements…" />}
       {data.isError && <ErrorState title="Could not load measurements" errorMessage={data.error instanceof Error ? data.error.message : undefined} retry={() => { void data.refetch(); }} />}
@@ -111,7 +121,7 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
         <h2>Morning questionnaire</h2>{data.data.morning_responses.length ? <div className="participant-table"><table><thead><tr><th>Submitted</th><th>Sleep quality /10</th><th>Energy /10</th><th>Reported bedtime</th><th>Reported sleep onset</th></tr></thead><tbody>{data.data.morning_responses.map(r => <tr key={r.submitted_at}><td>{localTime(r.submitted_at)}</td><td>{r.sleep_quality ?? '—'}</td><td>{r.energy}</td><td>{r.bedtime ?? '—'}</td><td>{r.fell_asleep_time ?? '—'}</td></tr>)}</tbody></table></div> : <p>No morning responses in this date range.</p>}
         <h2>Evening questionnaire</h2>{data.data.evening_responses.length ? <div className="participant-table"><table><thead><tr><th>Submitted</th><th>Energy /10</th><th>Productivity as entered</th><th>Last meal as entered</th></tr></thead><tbody>{data.data.evening_responses.map(r => <tr key={r.submitted_at}><td>{localTime(r.submitted_at)}</td><td>{r.energy}</td><td>{r.productivity_original ?? '—'}</td><td>{r.last_meal_time ?? '—'}</td></tr>)}</tbody></table></div> : <p>No evening responses in this date range.</p>}
         <p className="text-sm text-muted">Questionnaire clock times are shown as entered. Their AM/PM meaning and the productivity duration need confirmation.</p>
-        <ul className="text-sm text-muted">{data.data.notes.map(note => <li key={note}>{note}</li>)}</ul>
+        <ul className="text-sm text-muted">{data.data.notes.filter(note => note !== data.data?.demo?.description).map(note => <li key={note}>{note}</li>)}</ul>
       </>}
     </>}
   </section>;

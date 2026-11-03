@@ -8,6 +8,19 @@ import App from '../App';
 
 vi.mock('../api/client', () => ({ apiClient: { get: vi.fn() } }));
 
+test('14-day demo view is labelled and requests exactly fourteen dates', async () => {
+  vi.mocked(apiClient.get).mockClear();
+  const dashboard = { start_date: '2026-10-06', end_date: '2026-10-19', days: [], heart_rate_trend: [], morning_responses: [], evening_responses: [], notes: [], summary: { mean_bpm: null, heart_rate_samples: 0, steps: null, excluded_step_intervals: 0, mean_sleep_hours: null, valid_sleep_days: 0 } };
+  vi.mocked(apiClient.get).mockImplementation(async endpoint => (endpoint === '/participants' ? [{ participant_code: 'P001_DEMO', timezone: 'Europe/Amsterdam', start_date: '2026-10-06', end_date: '2026-10-19', is_demo: true, demo: { description: 'Copied test measurements.', day_sources: [] } }] : dashboard) as never);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const view = render(<QueryClientProvider client={client}><ParticipantDataPage /></QueryClientProvider>);
+  await screen.findByText('Demo dataset');
+  expect(screen.getByRole('heading', { name: 'Participant Data v2' })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('View'), { target: { value: 'fortnight' } });
+  await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith('/participants/P001_DEMO/range', { start_date: '2026-10-06', end_date: '2026-10-19', period: 'all', format: 'json' }));
+  view.unmount(); client.clear();
+});
+
 test('participant, date, week and day/night filters drive the Python API request', async () => {
   const dashboard = { start_date: '2026-10-09', end_date: '2026-10-09', days: [], heart_rate_trend: [], morning_responses: [], evening_responses: [], notes: [], summary: { mean_bpm: null, heart_rate_samples: 0, steps: null, excluded_step_intervals: 0, mean_sleep_hours: null, valid_sleep_days: 0 } };
   vi.mocked(apiClient.get).mockImplementation(async endpoint => (endpoint === '/participants' ? [{ participant_code: 'P001', timezone: 'Europe/Amsterdam', start_date: '2026-10-09', end_date: '2026-10-13' }] : dashboard) as never);

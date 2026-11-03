@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     DEV_ANONYMOUS_ACCESS: bool = False
     # Set by the run command/script to the address uvicorn binds to.
     APP_BIND_HOST: str = ""
+    # Optional labelled demo participant exposed only in explicit loopback dev mode.
+    DEV_DEMO_PARTICIPANT_CODE: str = ""
     # Legacy study pages/endpoints: "auto" (needs the complete legacy schema) or "false".
     LEGACY_STUDY_ENABLED: str = "auto"
     # Legacy POST /sync and /import. Also requires APP_ENV=local-dev and an admin user.

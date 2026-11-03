@@ -11,5 +11,6 @@
 .participant-table th,.participant-table td { padding:12px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
 .participant-table th { background:var(--primary-soft); }
 .participant-login { display:flex; flex-direction:column; gap:16px; max-width:360px; margin-top:24px; }
+.demo-data-notice { padding:16px; margin:12px 0; border:2px solid #b45309; border-radius:10px; background:#fffbeb; color:#78350f; }
 
 .participant-status { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }

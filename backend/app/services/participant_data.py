@@ -29,16 +29,43 @@ def dashboard_data(db,code,start,end,fmt,period):
         raise ValueError('Invalid format or period')
     zone=ZoneInfo('Europe/Amsterdam')
     params={'code':code,'start':start,'end':end,'from_time':datetime.combine(start,time.min,zone),'to_time':datetime.combine(end+timedelta(days=1),time.min,zone)}
+    variations=[]
+    if code.endswith('_DEMO') and db.scalar(text("SELECT to_regclass('health_analysis_test.demo_variation')")):
+        variations=list(db.execute(text('SELECT study_date,seed,parameters FROM health_analysis_test.demo_variation WHERE participant_code=:code AND study_date BETWEEN :start AND :end ORDER BY study_date'),params).mappings())
+    for index,variation in enumerate(variations):
+        params[f'vday{index}']=variation['study_date']
+        params[f'vseed{index}']=str(variation['seed'])
+        for key,value in variation['parameters'].items():params[f'v{index}_{key}']=value
+    def setting(alias,key,default):
+        branches=' '.join(f'WHEN {alias}.study_date=CAST(:vday{i} AS date) THEN :v{i}_{key}' for i in range(len(variations)))
+        return f'(CASE {branches} ELSE {default} END)' if branches else str(default)
+    def measure(alias,column,metric):
+        original=f'{alias}."{column}"'
+        if not variations:return original
+        seed='(CASE '+' '.join(f'WHEN {alias}.study_date=CAST(:vday{i} AS date) THEN :vseed{i}' for i in range(len(variations)))+" ELSE '0' END)"
+        noise=f"((('x'||substr(md5({alias}.id::text||{seed}),1,8))::bit(32)::bigint/4294967295.0-.5)*2)"
+        factor=setting(alias,metric+'_factor',1)
+        if metric=='heart_rate':
+            changed=f'greatest(35,least(220,round(({original}*{factor}+{noise}*{setting(alias,"heart_rate_jitter",0)})::numeric)))'
+        elif metric in ('steps','hrv'):
+            value=f'{original}*{factor}*(1+{noise}*{setting(alias,metric+"_jitter",0)})'
+            changed=f'greatest(0,round(({value})::numeric'+('))' if metric=='steps' else ',2))')
+        elif metric=='resting':changed=f'round(({original}*{factor})::numeric)'
+        else:changed=f'least(round(({original}*{factor})::numeric,1),extract(epoch from ({alias}.end_at-{alias}.observed_at))/60.0)'
+        # Leave both missing values and dates without settings completely unchanged.
+        dates=','.join(f'CAST(:vday{i} AS date)' for i in range(len(variations)))
+        return f'(CASE WHEN {original} IS NULL THEN NULL WHEN {alias}.study_date IN ({dates}) THEN {changed} ELSE {original} END)'
     def rows(sql):
         return [dict(r) for r in db.execute(text(sql),params).mappings()]
     def base(alias):
         return f'{alias}.participant_code=:code AND {alias}.{fmt}_present AND {alias}.study_date BETWEEN :start AND :end'
-    hr=rows(f'''SELECT h.study_date,avg(h.{fmt}_heart_rate_beats_per_minute) AS mean_bpm,
-       min(h.{fmt}_heart_rate_beats_per_minute) AS min_bpm,max(h.{fmt}_heart_rate_beats_per_minute) AS max_bpm,
+    hr_value=measure('h',fmt+'_heart_rate_beats_per_minute','heart_rate')
+    hr=rows(f'''SELECT h.study_date,avg({hr_value}) AS mean_bpm,
+       min({hr_value}) AS min_bpm,max({hr_value}) AS max_bpm,
        count(*) AS samples FROM health_analysis_test.heart_rate h
        WHERE {base('h')} AND {hour_filter('h',period)} GROUP BY h.study_date''')
     trend=rows(f'''SELECT date_trunc('hour',h.observed_at) AS timestamp,
-       avg(h.{fmt}_heart_rate_beats_per_minute) AS bpm,count(*) AS samples
+       avg({hr_value}) AS bpm,count(*) AS samples
        FROM health_analysis_test.heart_rate h WHERE {base('h')} AND {hour_filter('h',period)}
        GROUP BY date_trunc('hour',h.observed_at) ORDER BY timestamp''')
     trend=fill_hourly_gaps(trend,start,end,period)
@@ -54,16 +81,16 @@ def dashboard_data(db,code,start,end,fmt,period):
        AND NOT EXISTS(SELECT 1 FROM health_analysis_test.steps o WHERE o.participant_code=s.participant_code
           AND o.{fmt}_present AND o.id<>s.id AND o.observed_at<s.end_at AND o.end_at>s.observed_at) AS safe
        FROM health_analysis_test.steps s WHERE {base('s')} AND {hour_filter('s',period)})
-       SELECT study_date,sum({fmt}_steps_count) FILTER(WHERE safe) AS steps,
+       SELECT study_date,sum({measure('checked',fmt+'_steps_count','steps')}) FILTER(WHERE safe) AS steps,
        count(*) FILTER(WHERE NOT safe) AS excluded_intervals FROM checked GROUP BY study_date''')
-    sleep=rows(f'''SELECT s.study_date,sum(s.{fmt}_sleep_summary_minutes_asleep)/60.0 AS sleep_hours,
+    sleep=rows(f'''SELECT s.study_date,sum({measure('s',fmt+'_sleep_summary_minutes_asleep','sleep')})/60.0 AS sleep_hours,
        count(*) AS sessions FROM health_analysis_test.sleep s WHERE {base('s')}
        GROUP BY s.study_date''')
-    resting=rows(f'''SELECT r.study_date,avg(r.{fmt}_daily_resting_heart_rate_beats_per_minute) AS resting_bpm
+    resting=rows(f'''SELECT r.study_date,avg({measure('r',fmt+'_daily_resting_heart_rate_beats_per_minute','resting')}) AS resting_bpm
        FROM health_analysis_test.resting_heart_rate r WHERE {base('r')} GROUP BY r.study_date''')
     # Column name is bounded by the schema generator's PostgreSQL identifier rules.
     hrv_column=fmt+'_'+column_name('heartRateVariability.rootMeanSquareOfSuccessiveDifferencesMilliseconds')
-    hrv=rows(f'''SELECT h.study_date,avg(h."{hrv_column}") AS hrv_rmssd_ms,count(*) AS hrv_samples
+    hrv=rows(f'''SELECT h.study_date,avg({measure('h',hrv_column,'hrv')}) AS hrv_rmssd_ms,count(*) AS hrv_samples
        FROM health_analysis_test.hrv h WHERE {base('h')} AND {hour_filter('h',period)} GROUP BY h.study_date''')
     morning=rows('''SELECT study_date,observed_at AS submitted_at,csv_energy_level AS energy,
        csv_sleep_quality AS sleep_quality,csv_bedtime AS bedtime,csv_fell_asleep_time AS fell_asleep_time,
@@ -82,6 +109,7 @@ def dashboard_data(db,code,start,end,fmt,period):
     valid_steps=[d['steps'] for d in daily.values() if d['steps'] is not None]
     valid_sleep=[d['sleep_hours'] for d in daily.values() if d['sleep_hours'] is not None]
     return {'participant_code':code,'timezone':'Europe/Amsterdam','start_date':start,'end_date':end,
+       'synthetic_variation_dates':[v['study_date'] for v in variations],
        'format':fmt,'period':period,'day_hours':'06:00–22:00','night_hours':'22:00–06:00; calendar-date portions',
        'days':list(daily.values()),'heart_rate_trend':trend,'morning_responses':morning,'evening_responses':evening,
        'summary':{'mean_bpm':sum(d['mean_bpm']*d['samples'] for d in daily.values() if d['mean_bpm'] is not None)/samples if samples else None,

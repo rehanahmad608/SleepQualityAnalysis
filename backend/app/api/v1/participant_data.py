@@ -144,7 +144,7 @@ def demo_info(db,code):
     return {**info,'day_sources':[dict(r) for r in db.execute(text('SELECT target_date,source_date,repeated_day FROM health_analysis_test.demo_day_sources WHERE participant_code=:code ORDER BY target_date'),{'code':code}).mappings()]}
 
 
-def get_data(code,start,end,fmt,period,db,allowed):
+def get_data(code,start,end,fmt,period,db,allowed,trend_resolution='hour'):
     if code not in allowed:
         raise HTTPException(403,'You do not have access to this participant.')
     if end<start or (end-start).days>30:
@@ -153,7 +153,7 @@ def get_data(code,start,end,fmt,period,db,allowed):
         exists=db.scalar(text('SELECT 1 FROM health_analysis_test.participants WHERE participant_code=:code'),{'code':code})
         if not exists:
             raise HTTPException(404,'Participant not found.')
-        result=dashboard_data(db,code,start,end,fmt,period)
+        result=dashboard_data(db,code,start,end,fmt,period,trend_resolution=trend_resolution)
         result['demo']=demo_info(db,code)
         if result['demo']:
             result['notes'].insert(0,result['demo']['description'])
@@ -165,6 +165,15 @@ def get_data(code,start,end,fmt,period,db,allowed):
 @router.get('/{code}/daily')
 def daily(code:str,date:date,format:Literal['json','csv']='json',period:Literal['all','day','night']='all',db:Session=Depends(get_db),allowed:list[str]=Depends(allowed_participants)):
     return get_data(code,date,date,format,period,db,allowed)
+
+
+@router.get('/{code}/sleep-comparison')
+def sleep_comparison(code:str,date:date,db:Session=Depends(get_db),allowed:list[str]=Depends(allowed_participants)):
+    """One overnight window with minute means for comparison against recorded sleep stages.
+
+    This endpoint does not infer or diagnose sleep from a heart-rate threshold.
+    """
+    return get_data(code,date-timedelta(days=1),date,'json','all',db,allowed,trend_resolution='minute')
 
 
 @router.get('/{code}/weekly')

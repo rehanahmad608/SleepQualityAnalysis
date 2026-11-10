@@ -5,6 +5,9 @@ import StatusBadge from '../ui/StatusBadge';
 import DataModeBadge from '../ui/DataModeBadge';
 import LoadingState from '../ui/LoadingState';
 import ErrorState from '../ui/ErrorState';
+import { ACCESS_TOKEN_KEY } from '../../api/authEvents';
+import { revokeSession } from '../../auth/supabaseAuth';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface NavItem {
   to: string;
@@ -28,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
 const STRUCTURED_PATHS = ['/', '/participant-data', '/daily', '/night', '/weekly', '/sleep'];
 
 export default function Layout() {
+  const cache = useQueryClient();
   const location = useLocation();
   const structured = STRUCTURED_PATHS.includes(location.pathname);
   const capsQuery = useCapabilities();
@@ -89,6 +93,13 @@ export default function Layout() {
           )}
         </div>
         <div className="app-header-right">
+          <button className="btn" onClick={() => {
+            const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+            sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+            cache.clear();
+            if (token) void revokeSession(token);
+            window.location.replace('/');
+          }}>Sign out</button>
           {showLegacyHeader && studyQuery.isLoading && (
             <span className="text-sm text-muted">Loading study info…</span>
           )}

@@ -5,11 +5,8 @@ import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tool
 import { apiClient } from '../api/client';
 import { ACCESS_TOKEN_KEY, AUTH_EXPIRED_EVENT } from '../api/authEvents';
 import { AuthError, signInWithPassword } from '../auth/supabaseAuth';
-import MetricCard from '../components/ui/MetricCard';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
-import MissingDaysBadge from '../components/ui/MissingDaysBadge';
-import StatusBadge from '../components/ui/StatusBadge';
 import './participantData.css';
 
 interface DemoInfo { description: string; day_sources: { target_date: string; source_date: string; repeated_day: boolean }[] }
@@ -46,7 +43,8 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
   const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get('participant') || '');
   const [selectedDate, setDate] = useState(() => new URLSearchParams(window.location.search).get('date') || '');
   const [mode, setMode] = useState<'daily' | 'weekly' | 'fortnight'>(() => new URLSearchParams(window.location.search).get('view') === 'fortnight' ? 'fortnight' : initialView);
-  const [period, setPeriod] = useState<string>(initialPeriod); const [dataFormat, setFormat] = useState('json');
+  const [period, setPeriod] = useState<string>(initialPeriod);
+  const dataFormat = 'json';
   const participants = useQuery({ queryKey: ['structured-participants', token], queryFn: () => apiClient.get<Participant[]>('/participants'), enabled: !authConfigured || !!token, retry: false });
   const selected = participants.data?.find(p => p.participant_code === code) || participants.data?.[0];
   const participantCode = selected?.participant_code || '';
@@ -79,48 +77,28 @@ export default function ParticipantDataPage({ initialView = 'daily', initialPeri
     <p className="text-sm"><ForgotPasswordLink /></p>
   </form></section>;
   return <section className="participant-data">
-    <div className="page-header"><div><h1>{selected?.is_demo ? 'Participant Data v2' : title}</h1><p className="page-subtitle">Imported health measurements and questionnaire responses · Europe/Amsterdam</p></div>{authConfigured && <button className="btn" onClick={signOut}>Sign out</button>}</div>
+    <div className="page-header"><div><h1>{selected?.is_demo ? "Jack's Sleep Data" : title}</h1><p className="page-subtitle">Imported health measurements and questionnaire responses · Europe/Amsterdam</p></div>{authConfigured && <button className="btn" onClick={signOut}>Sign out</button>}</div>
     {participants.isLoading && <LoadingState title="Loading participants…" />}
     {participants.isError && <ErrorState title="Could not load participants" errorMessage={participants.error instanceof Error ? participants.error.message : undefined} retry={() => { void participants.refetch(); }} />}
     {participants.data?.length === 0 && <p>No participants have been shared with this account.</p>}
     {selected && <>
       <div className="participant-filters">
-        <label>Participant<select value={participantCode} onChange={e => { setCode(e.target.value); setDate(''); }}>{participants.data?.map(p => <option key={p.participant_code} value={p.participant_code}>{p.is_demo ? 'Participant Data v2' : p.participant_code}</option>)}</select></label>
+        <label>Participant<select value={participantCode} onChange={e => { setCode(e.target.value); setDate(''); }}>{participants.data?.map(p => <option key={p.participant_code} value={p.participant_code}>{p.is_demo ? 'Jack' : p.participant_code}</option>)}</select></label>
         <label>View<select value={mode} onChange={e => setMode(e.target.value as 'daily' | 'weekly' | 'fortnight')}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="fortnight">14 days</option></select></label>
         <label>{mode === 'daily' ? 'Date' : mode === 'weekly' ? 'Seven days starting' : 'Fourteen days starting'}<input type="date" value={day} onChange={e => setDate(e.target.value)} /></label>
         <label>Time of day<select value={period} onChange={e => setPeriod(e.target.value)}><option value="all">Full day</option><option value="day">Day · 06:00–22:00</option><option value="night">Night · before 06:00 / after 22:00</option></select></label>
-        <label>Data source<select value={dataFormat} onChange={e => setFormat(e.target.value)}><option value="json">JSON export</option><option value="csv">CSV export</option></select></label>
       </div>
-      {selected.is_demo && <p className="text-sm text-muted" role="note">Demo dataset</p>}
-      <p className="text-sm text-muted">Available records: {selected.start_date} to {selected.end_date}. Day/night filters apply to heart rate, HRV and steps. Sleep uses its wake date.</p>
       {data.isLoading && <LoadingState title="Loading measurements…" />}
       {data.isError && <ErrorState title="Could not load measurements" errorMessage={data.error instanceof Error ? data.error.message : undefined} retry={() => { void data.refetch(); }} />}
       {data.data && <>
-        <p className="text-sm">Showing {data.data.start_date} to {data.data.end_date} {data.isFetching && '· Updating…'}</p>
-        {data.data.days.length > 0 && (
-          <div className="participant-status" aria-label="Data coverage">
-            {/* Display only: derived from fields the API already returns; no calculation changes. */}
-            <MissingDaysBadge
-              missing={data.data.days.filter(d => d.samples === 0 && d.steps == null && d.sleep_hours == null && d.resting_bpm == null && d.hrv_rmssd_ms == null).length}
-              total={data.data.days.length}
-            />
-            {data.data.summary.excluded_step_intervals > 0
-              ? <StatusBadge variant="warning">{data.data.summary.excluded_step_intervals} step intervals excluded</StatusBadge>
-              : <StatusBadge variant="neutral" icon={false}>No step intervals excluded</StatusBadge>}
-          </div>
-        )}
-        <div className="participant-metrics">
-          <MetricCard label="Observed mean heart rate" value={number(data.data.summary.mean_bpm)} units="bpm" sampleCount={data.data.summary.heart_rate_samples} />
-          <MetricCard label="Nonoverlapping steps" value={number(data.data.summary.steps, 0)} units="steps" footer={`${data.data.summary.excluded_step_intervals} intervals excluded`} />
-          <MetricCard label="Mean sleep per recorded wake date" value={number(data.data.summary.mean_sleep_hours)} units="hours" footer={`${data.data.summary.valid_sleep_days} dates with sleep`} />
-        </div>
-        {data.data.summary.heart_rate_samples === 0 && data.data.days.every(d => d.steps == null && d.sleep_hours == null) && <p>No wearable measurements match these filters. Questionnaire responses may still be available below.</p>}
+        <div className="questionnaire-counts" aria-label="Questionnaire response counts"><a href="#morning-questionnaire">Morning responses: {data.data.morning_responses.length}</a><a href="#evening-questionnaire">Evening responses: {data.data.evening_responses.length}</a></div>
+        <h2 id="morning-questionnaire">Morning questionnaire ({data.data.morning_responses.length})</h2>{data.data.morning_responses.length ? <div className="participant-table"><table><thead><tr><th>{selected.is_demo ? 'Study time' : 'Submitted'}</th><th>Sleep quality /5</th><th>Energy /5</th><th>Reported bedtime</th><th>Reported sleep onset</th></tr></thead><tbody>{data.data.morning_responses.map(r => <tr key={r.submitted_at}><td>{localTime(r.submitted_at)}</td><td>{r.sleep_quality ?? '—'}</td><td>{r.energy}</td><td>{r.bedtime ?? '—'}</td><td>{r.fell_asleep_time ?? '—'}</td></tr>)}</tbody></table></div> : <p>No morning responses in this date range.</p>}
+        <h2 id="evening-questionnaire">Evening questionnaire ({data.data.evening_responses.length})</h2>{data.data.evening_responses.length ? <div className="participant-table"><table><thead><tr><th>{selected.is_demo ? 'Study time' : 'Submitted'}</th><th>Energy /5</th><th>Productivity as entered</th><th>Last meal as entered</th></tr></thead><tbody>{data.data.evening_responses.map(r => <tr key={r.submitted_at}><td>{localTime(r.submitted_at)}</td><td>{r.energy}</td><td>{r.productivity_original ?? '—'}</td><td>{r.last_meal_time ?? '—'}</td></tr>)}</tbody></table></div> : <p>No evening responses in this date range.</p>}
+        <p className="text-sm text-muted">Questionnaire clock times are shown as entered. Their AM/PM meaning and the productivity duration need confirmation.</p>
+        {data.data.summary.heart_rate_samples === 0 && data.data.days.every(d => d.steps == null && d.sleep_hours == null) && <p>No wearable measurements match these filters. Questionnaire responses are shown above when available.</p>}
         <div className="participant-chart"><h2>Heart rate · hourly observed averages</h2>{data.data.heart_rate_trend.some(point => point.bpm != null) ? <ResponsiveContainer width="100%" height={260}><LineChart data={data.data.heart_rate_trend}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="timestamp" tickFormatter={localTime} minTickGap={60} /><YAxis unit=" bpm" /><Tooltip labelFormatter={label => localTime(String(label))} /><Line dataKey="bpm" name="Mean heart rate" stroke="#6366f1" dot={false} connectNulls={false} /></LineChart></ResponsiveContainer> : <p>No heart-rate readings for this selection.</p>}</div>
         <div className="participant-chart"><h2>Daily steps</h2><ResponsiveContainer width="100%" height={230}><BarChart data={data.data.days}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="steps" name="Nonoverlapping steps" fill="#14b8a6" /></BarChart></ResponsiveContainer></div>
-        <h2>Daily measurements</h2><div className="participant-table"><table><thead><tr><th>Date</th><th>Mean HR</th><th>HR samples</th><th>Resting HR</th><th>HRV RMSSD</th><th>Steps</th><th>Sleep hours</th></tr></thead><tbody>{data.data.days.map(d => <tr key={d.date}><td>{d.date}</td><td>{number(d.mean_bpm)}</td><td>{number(d.samples, 0)}</td><td>{number(d.resting_bpm)}</td><td>{number(d.hrv_rmssd_ms)}</td><td>{number(d.steps, 0)}</td><td>{number(d.sleep_hours)}</td></tr>)}</tbody></table></div>
-        <h2>Morning questionnaire</h2>{data.data.morning_responses.length ? <div className="participant-table"><table><thead><tr><th>Submitted</th><th>Sleep quality /10</th><th>Energy /10</th><th>Reported bedtime</th><th>Reported sleep onset</th></tr></thead><tbody>{data.data.morning_responses.map(r => <tr key={r.submitted_at}><td>{localTime(r.submitted_at)}</td><td>{r.sleep_quality ?? '—'}</td><td>{r.energy}</td><td>{r.bedtime ?? '—'}</td><td>{r.fell_asleep_time ?? '—'}</td></tr>)}</tbody></table></div> : <p>No morning responses in this date range.</p>}
-        <h2>Evening questionnaire</h2>{data.data.evening_responses.length ? <div className="participant-table"><table><thead><tr><th>Submitted</th><th>Energy /10</th><th>Productivity as entered</th><th>Last meal as entered</th></tr></thead><tbody>{data.data.evening_responses.map(r => <tr key={r.submitted_at}><td>{localTime(r.submitted_at)}</td><td>{r.energy}</td><td>{r.productivity_original ?? '—'}</td><td>{r.last_meal_time ?? '—'}</td></tr>)}</tbody></table></div> : <p>No evening responses in this date range.</p>}
-        <p className="text-sm text-muted">Questionnaire clock times are shown as entered. Their AM/PM meaning and the productivity duration need confirmation.</p>
+        <h2>Daily measurements</h2><div className="participant-table"><table><thead><tr><th>Date</th><th>HR samples</th><th>Resting HR</th><th>HRV RMSSD</th><th>Steps</th><th>Sleep hours</th></tr></thead><tbody>{data.data.days.map(d => <tr key={d.date}><td>{d.date}</td><td>{number(d.samples, 0)}</td><td>{number(d.resting_bpm)}</td><td>{number(d.hrv_rmssd_ms)}</td><td>{number(d.steps, 0)}</td><td>{number(d.sleep_hours)}</td></tr>)}</tbody></table></div>
         <ul className="text-sm text-muted">{data.data.notes.filter(note => note !== data.data?.demo?.description).map(note => <li key={note}>{note}</li>)}</ul>
       </>}
     </>}

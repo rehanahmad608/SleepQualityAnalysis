@@ -10,7 +10,7 @@ def hour_filter(alias,period):
     return 'TRUE' if period=='all' else f'({hour}>=6 AND {hour}<22)' if period=='day' else f'({hour}<6 OR {hour}>=22)'
 
 
-def fill_hourly_gaps(trend,start,end,period):
+def fill_hourly_gaps(trend,start,end,period,step_minutes=60):
     zone=ZoneInfo('Europe/Amsterdam')
     cursor=datetime.combine(start,time.min,zone).astimezone(timezone.utc)
     stop=datetime.combine(end+timedelta(days=1),time.min,zone).astimezone(timezone.utc)
@@ -20,13 +20,15 @@ def fill_hourly_gaps(trend,start,end,period):
         hour=cursor.astimezone(zone).hour
         included=period=='all' or (6<=hour<22 if period=='day' else hour<6 or hour>=22)
         result.append(indexed.get(cursor,{'timestamp':cursor,'bpm':None,'samples':0}) if included else {'timestamp':cursor,'bpm':None,'samples':0})
-        cursor+=timedelta(hours=1)
+        cursor+=timedelta(minutes=step_minutes)
     return result
 
 
-def dashboard_data(db,code,start,end,fmt,period):
+def dashboard_data(db,code,start,end,fmt,period,trend_resolution='hour'):
     if fmt not in ('json','csv') or period not in ('all','day','night'):
         raise ValueError('Invalid format or period')
+    if trend_resolution not in ('hour','minute') or (trend_resolution=='minute' and (end-start).days>1):
+        raise ValueError('Minute-level heart rate is limited to two calendar days')
     zone=ZoneInfo('Europe/Amsterdam')
     params={'code':code,'start':start,'end':end,'from_time':datetime.combine(start,time.min,zone),'to_time':datetime.combine(end+timedelta(days=1),time.min,zone)}
     variations=[]
@@ -64,11 +66,11 @@ def dashboard_data(db,code,start,end,fmt,period):
        min({hr_value}) AS min_bpm,max({hr_value}) AS max_bpm,
        count(*) AS samples FROM health_analysis_test.heart_rate h
        WHERE {base('h')} AND {hour_filter('h',period)} GROUP BY h.study_date''')
-    trend=rows(f'''SELECT date_trunc('hour',h.observed_at) AS timestamp,
-       avg({hr_value}) AS bpm,count(*) AS samples
+    trend=rows(f'''SELECT date_trunc('{trend_resolution}',h.observed_at) AS timestamp,
+       avg({hr_value}) AS bpm,max({hr_value}) AS peak_bpm,count(*) AS samples
        FROM health_analysis_test.heart_rate h WHERE {base('h')} AND {hour_filter('h',period)}
-       GROUP BY date_trunc('hour',h.observed_at) ORDER BY timestamp''')
-    trend=fill_hourly_gaps(trend,start,end,period)
+       GROUP BY date_trunc('{trend_resolution}',h.observed_at) ORDER BY timestamp''')
+    trend=fill_hourly_gaps(trend,start,end,period,step_minutes=1 if trend_resolution=='minute' else 60)
     # Include only full step intervals inside one local day and selected period.
     # Overlaps, midnight crossings, and day/night boundary crossings are excluded.
     end_hour="EXTRACT(HOUR FROM (s.end_at-INTERVAL '1 microsecond') AT TIME ZONE 'Europe/Amsterdam')"
@@ -86,6 +88,12 @@ def dashboard_data(db,code,start,end,fmt,period):
     sleep=rows(f'''SELECT s.study_date,sum({measure('s',fmt+'_sleep_summary_minutes_asleep','sleep')})/60.0 AS sleep_hours,
        count(*) AS sessions FROM health_analysis_test.sleep s WHERE {base('s')}
        GROUP BY s.study_date''')
+    sleep_sessions=rows(f'''SELECT s.study_date,s.observed_at AS start_at,s.end_at,
+       {measure('s',fmt+'_sleep_summary_minutes_asleep','sleep')} AS minutes_asleep,
+       s.{fmt}_sleep_summary_minutes_awake AS minutes_awake,
+       s.{fmt}_sleep_summary_minutes_to_fall_asleep AS minutes_to_fall_asleep,
+       s.{fmt}_sleep_metadata_main_sleep AS main_sleep,s.{fmt}_sleep_stages AS stages
+       FROM health_analysis_test.sleep s WHERE {base('s')} ORDER BY s.observed_at''')
     resting=rows(f'''SELECT r.study_date,avg({measure('r',fmt+'_daily_resting_heart_rate_beats_per_minute','resting')}) AS resting_bpm
        FROM health_analysis_test.resting_heart_rate r WHERE {base('r')} GROUP BY r.study_date''')
     # Column name is bounded by the schema generator's PostgreSQL identifier rules.
@@ -94,7 +102,7 @@ def dashboard_data(db,code,start,end,fmt,period):
        FROM health_analysis_test.hrv h WHERE {base('h')} AND {hour_filter('h',period)} GROUP BY h.study_date''')
     morning=rows('''SELECT study_date,observed_at AS submitted_at,csv_energy_level AS energy,
        csv_sleep_quality AS sleep_quality,csv_bedtime AS bedtime,csv_fell_asleep_time AS fell_asleep_time,
-       interpretation_notes FROM health_analysis_test.morning_responses
+       csv_previous_sleep_date AS reported_sleep_date,interpretation_notes FROM health_analysis_test.morning_responses
        WHERE participant_code=:code AND study_date BETWEEN :start AND :end ORDER BY observed_at''')
     evening=rows('''SELECT study_date,observed_at AS submitted_at,csv_energy_level AS energy,
        csv_productive_hours_original AS productivity_original,csv_productive_hours AS productive_hours,
@@ -110,8 +118,8 @@ def dashboard_data(db,code,start,end,fmt,period):
     valid_sleep=[d['sleep_hours'] for d in daily.values() if d['sleep_hours'] is not None]
     return {'participant_code':code,'timezone':'Europe/Amsterdam','start_date':start,'end_date':end,
        'synthetic_variation_dates':[v['study_date'] for v in variations],
-       'format':fmt,'period':period,'day_hours':'06:00–22:00','night_hours':'22:00–06:00; calendar-date portions',
-       'days':list(daily.values()),'heart_rate_trend':trend,'morning_responses':morning,'evening_responses':evening,
+       'format':fmt,'period':period,'trend_resolution':trend_resolution,'day_hours':'06:00–22:00','night_hours':'22:00–06:00; calendar-date portions',
+       'days':list(daily.values()),'heart_rate_trend':trend,'sleep_sessions':sleep_sessions,'morning_responses':morning,'evening_responses':evening,
        'summary':{'mean_bpm':sum(d['mean_bpm']*d['samples'] for d in daily.values() if d['mean_bpm'] is not None)/samples if samples else None,
            'heart_rate_samples':samples,'steps':sum(valid_steps) if valid_steps else None,'valid_step_days':len(valid_steps),
            'excluded_step_intervals':sum(d['excluded_intervals'] for d in daily.values()),

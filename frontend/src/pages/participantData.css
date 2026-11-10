@@ -14,3 +14,5 @@
 .demo-data-notice { padding:16px; margin:12px 0; border:2px solid #b45309; border-radius:10px; background:#fffbeb; color:#78350f; }
 
 .participant-status { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.questionnaire-counts { display:flex; flex-wrap:wrap; gap:20px; margin:18px 0 8px; font-weight:600; }
+.participant-data h2[id] { scroll-margin-top:90px; }

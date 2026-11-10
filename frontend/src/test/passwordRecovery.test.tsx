@@ -67,13 +67,11 @@ const apiCalls = () => calls.filter((c) => c.url.includes('/api/v1'));
 /* ------------------------------------------------------------ forgot */
 
 describe('forgot password', () => {
-  it('is reachable from the sign-in form', async () => {
-    respond = (c) => (c.url.includes('/capabilities') ? json({ detail: 'no' }, 401) : json({}));
-    renderAt('/');
-    const link = await screen.findByRole('link', { name: 'Forgot password?' });
-    fireEvent.click(link);
+  it('remains publicly reachable without loading participant data', async () => {
+    renderAt('/forgot-password');
     expect(await screen.findByRole('heading', { name: 'Reset your password' })).toBeInTheDocument();
     expect(screen.getByTestId('loc').textContent).toBe('/forgot-password');
+    expect(apiCalls()).toHaveLength(0);
   });
 
   it('validates the email format before sending anything', async () => {

@@ -56,3 +56,25 @@ def test_chart_missing_hours_and_dst_fallback_are_not_invented():
     buckets=fill_hourly_gaps([],date(2026,10,25),date(2026,10,25),'all')
     assert len(buckets)==25
     assert all(b['bpm'] is None and b['samples']==0 for b in buckets)
+
+
+def test_minute_heart_rate_keeps_dst_gaps_without_generating_readings():
+    buckets=fill_hourly_gaps([],date(2026,10,25),date(2026,10,25),'all',step_minutes=1)
+    assert len(buckets)==1500
+    assert all(b['bpm'] is None and b['samples']==0 for b in buckets)
+
+
+def test_sleep_comparison_is_bounded_to_one_overnight_window(monkeypatch):
+    from app.api.v1 import participant_data
+    calls=[]
+    monkeypatch.setattr(participant_data,'get_data',lambda *a,**kw:calls.append((a,kw)))
+    participant_data.sleep_comparison('P001',date(2026,10,6),None,['P001'])
+    args,kwargs=calls[0]
+    assert args[1:3]==(date(2026,10,5),date(2026,10,6))
+    assert kwargs['trend_resolution']=='minute'
+
+
+def test_minute_resolution_cannot_query_an_unbounded_date_range():
+    from app.services.participant_data import dashboard_data
+    with pytest.raises(ValueError,match='two calendar days'):
+        dashboard_data(None,'P001',date(2026,10,5),date(2026,10,8),'json','all',trend_resolution='minute')

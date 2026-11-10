@@ -162,6 +162,57 @@ async function createPkcePair(): Promise<{ verifier: string; challenge: string }
   }
 }
 
+const GOOGLE_VERIFIER_KEY = 'google-code-verifier';
+const GOOGLE_RETURN_KEY = 'google-return-path';
+
+export async function signInWithGoogle(): Promise<void> {
+  const cfg = getAuthConfig();
+  if (!cfg) throw new AuthError('config', 'Google sign-in has not been configured. Please contact the project owner.');
+  const pair = await createPkcePair();
+  if (!pair) throw new AuthError('config', 'Use HTTPS or localhost to sign in securely.');
+  sessionStorage.setItem(GOOGLE_VERIFIER_KEY, pair.verifier);
+  sessionStorage.setItem(GOOGLE_RETURN_KEY, window.location.pathname + window.location.search + window.location.hash);
+  const query = new URLSearchParams({
+    provider: 'google', redirect_to: `${window.location.origin}/auth/callback`,
+    code_challenge: pair.challenge, code_challenge_method: 's256',
+  });
+  window.location.assign(`${cfg.url}/auth/v1/authorize?${query}`);
+}
+
+/** Single exchange shared by React StrictMode's repeated effect setup. */
+let googleExchange: Promise<void> | undefined;
+export function finishGoogleSignIn(): Promise<void> {
+  if (googleExchange) return googleExchange;
+  googleExchange = (async () => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const verifier = sessionStorage.getItem(GOOGLE_VERIFIER_KEY);
+    window.history.replaceState(null, '', '/auth/callback');
+    try {
+      if (params.has('error') || !code || !verifier) {
+        throw new AuthError('invalid', 'Google sign-in was cancelled or expired. Please try again.');
+      }
+      const result = await authRequest<SessionResponse>('/token', {
+        method: 'POST', query: { grant_type: 'pkce' },
+        body: { auth_code: code, code_verifier: verifier },
+      });
+      if (!result.access_token) throw new AuthError('session', 'Sign-in failed. Please try again.');
+      await validateDashboardSession(result.access_token);
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, result.access_token);
+      const target = sessionStorage.getItem(GOOGLE_RETURN_KEY) || '/';
+      window.history.replaceState(null, '', target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/auth/') ? target : '/');
+    } finally {
+      sessionStorage.removeItem(GOOGLE_VERIFIER_KEY);
+      sessionStorage.removeItem(GOOGLE_RETURN_KEY);
+    }
+  })();
+  return googleExchange;
+}
+
+export async function validateDashboardSession(token: string): Promise<void> {
+  await authRequest('/user', { token });
+}
+
 function storeVerifier(v: string | null): void {
   try {
     if (v) localStorage.setItem(VERIFIER_KEY, v);

@@ -31,3 +31,8 @@ coverage/
 backend/.env
 frontend/.env
 frontend/.env.local
+
+# Original reference uploads contain embedded login configuration.
+# The sanitized dashboard implementation is tracked under frontend/src/dashboard/.
+sleep_dashboard_gui.html
+sleep_dashboard_live-3.html

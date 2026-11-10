@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jack's Sleep Data – Dashboard (Group C)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- Supabase client: only used when CONFIG (in the script at the bottom) is filled in -->
+
+<style>
+  :root{
+    --bg:#F7F6F2; --surface:#FCFCFB; --ink:#1E1B3A; --ink2:#52514e; --mute:#8a8984; --line:#E3E1DA;
+    --sleep:#2a78d6;  --sleepL:#86b6ef; --sleepD:#0d366b;      /* night, measured */
+    --day:#eb6834;                                              /* following day, measured */
+    --self:#1baf7a;                                             /* self-reported */
+    --q5:#0b6b4b; --q4:#1baf7a; --q3:#5cc79a; --q2:#9fdcc3; --q1:#cdeee1; /* quality 5 (best) -> 1 */
+    --g1:#C9C7BF; --g2:#8f8d86; --g3:#4a4945;                   /* size of difference (ordinal) */
+    --diff:#52514e;
+    --accent:#534AB7; --accentSoft:#E9E7FB; --err:#c0392b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45}
+  button{font:inherit;cursor:pointer}
+  .hidden{display:none!important}
+
+  /* login */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:36px 32px;box-shadow:0 8px 30px rgba(30,27,58,.06)}
+  .login-card h1{font-size:24px;margin-bottom:4px}
+  .login-card p.sub{color:var(--ink2);margin-bottom:24px}
+  label{display:block;font-weight:500;font-size:14px;margin-bottom:6px}
+  input[type=password],input[type=text]{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .btn{display:inline-block;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:700}
+  .btn.block{width:100%;margin-top:16px}
+  .btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent);padding:8px 14px}
+  .error{display:flex;gap:8px;align-items:flex-start;background:#FBEAE8;color:var(--err);border:1.5px solid #EBB7B0;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:14px}
+  .hint{margin-top:18px;font-size:13px;color:var(--mute);border-top:1px dashed var(--line);padding-top:12px}
+  .hint code{background:var(--accentSoft);color:var(--accent);padding:1px 6px;border-radius:5px}
+
+  /* shell */
+  header.top{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+  .top-inner{max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px}
+  .brand{font-weight:700;font-size:18px}
+  .brand small{display:block;font-weight:400;font-size:13px;color:var(--ink2)}
+  .period{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .period span{font-size:13px;color:var(--ink2)}
+  .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:7px 14px;color:var(--ink2)}
+  .seg button[aria-pressed=true]{background:var(--accent);color:#fff;font-weight:700}
+  .sample{font-size:12px;background:#FAEEDA;color:#854F0B;padding:3px 10px;border-radius:999px;font-weight:700}
+  main{max-width:1240px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:22px}
+  .range-line{color:var(--ink2);font-size:14px}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+  .panel-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin-bottom:14px}
+  .panel-head h2{font-size:18px}
+  .panel-head p{color:var(--ink2);font-size:14px;flex-basis:100%}
+  .tags{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:11.5px;background:var(--accentSoft);color:#3C3489;padding:2px 8px;border-radius:999px;font-weight:500;white-space:nowrap}
+  .sub-h{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:18px 0 10px}
+
+  /* weekly */
+  .wk-table{width:100%;border-collapse:collapse}
+  .wk-table th,.wk-table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+  .wk-table th:first-child,.wk-table td:first-child{text-align:left}
+  .wk-table thead th{font-size:13px;color:var(--ink2);font-weight:500}
+  .wk-table td.grp{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);padding-top:14px;text-align:left}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:0}
+
+  /* chart boxes */
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .quad{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .chart-box h3{font-size:14px;font-weight:700;margin-bottom:2px}
+  .chart-box .cap{font-size:12.5px;color:var(--ink2);margin-bottom:6px}
+  .box-night,.box-day,.box-self{border-radius:12px;padding:12px 14px;background:#fff}
+  .box-night{border:2px solid #CFE0F6} .box-day{border:2px solid #F8D3C2} .box-self{border:2px solid #BFE8D8} .box-both{border:2px solid #DAD8D0;border-radius:12px;padding:12px 14px;background:#fff}
+  .box-head{display:flex;align-items:flex-start;gap:10px}
+  .box-head .seg{margin-left:auto;flex:none} .box-head .seg button{padding:4px 10px;font-size:12.5px}
+  .tile{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .tile .big{display:flex;align-items:baseline;gap:10px}
+  .tile .big b{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+  .tile .big span{font-size:13px;color:var(--ink2)}
+  .tile .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .tile .small{font-size:12.5px;color:var(--ink2);border-top:1px dashed var(--line);padding-top:8px}
+  svg text{font-family:'DM Sans',Arial,sans-serif}
+  .key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2);margin-bottom:4px}
+  .key i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  .key i.sq{border-radius:3px}
+
+  /* donuts */
+  .donut-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .donut-list{list-style:none;font-size:12.5px;display:flex;flex-direction:column;gap:5px;min-width:120px;flex:1}
+  .donut-list li{display:flex;align-items:center;gap:7px}
+  .donut-list .sw{width:11px;height:11px;border-radius:3px;flex:none}
+  .donut-list .v{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink2);padding-left:8px;white-space:nowrap}
+  .twin{display:flex;gap:10px;flex-wrap:wrap}
+  .twin > div{flex:1;min-width:120px}
+  .twin h4{font-size:12.5px;font-weight:500;color:var(--ink2);margin-bottom:2px}
+
+  /* tables */
+  .scroll{overflow-x:auto}
+  table.daily{border-collapse:separate;border-spacing:0;width:100%;min-width:1240px;font-variant-numeric:tabular-nums;font-size:14px}
+  table.daily th,table.daily td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.daily th:first-child,table.daily td:first-child{text-align:left}
+  table.daily thead tr.band th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;text-align:center;border-bottom:0;padding:6px}
+  .band-night{background:#EAF2FC;color:#184f95}
+  .band-day{background:#FDEEE6;color:#a8401a}
+  table.daily thead tr.cols th{font-size:12.5px;color:var(--ink2);font-weight:500}
+  td.nightc{background:#F6F9FE} td.dayc{background:#FEF8F4}
+  td.sep,th.sep{border-left:2px solid var(--line)}
+  td.missing{color:var(--mute);font-style:italic;text-align:center!important;background:repeating-linear-gradient(135deg,#F1F0EC 0 6px,#FBFBF8 6px 12px)}
+  table.cmp{border-collapse:collapse;width:100%;min-width:1000px;font-variant-numeric:tabular-nums;font-size:14px}
+  table.cmp th,table.cmp td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  table.cmp th:first-child,table.cmp td:first-child{text-align:left}
+  table.cmp thead th{font-size:12.5px;color:var(--ink2);font-weight:500}
+  table.cmp thead tr.grp th{text-align:center;font-weight:700;color:var(--ink);border-bottom:0}
+  .m{color:#184f95} .s{color:#0b6b4b} .d{color:var(--ink2)}
+  .note{font-size:13px;color:var(--ink2);margin-top:10px}
+
+  /* check-ins */
+  .ci-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .ci{border:1.5px solid #BFE8D8;background:#fff;border-radius:12px;padding:10px 12px;font-size:13.5px}
+  .ci h4{font-size:13.5px;margin-bottom:6px}
+  .ci h5{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-top:6px}
+  .ci .slot{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px dashed var(--line)}
+  .ci .slot b{font-weight:500;color:var(--ink2)}
+  .ci .expired{color:var(--mute);font-style:italic}
+
+  /* legend */
+  .legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px 22px;font-size:13.5px}
+  .legend div{display:flex;gap:10px;align-items:flex-start}
+  .legend .sw{flex:none;width:24px;height:16px;border-radius:4px;margin-top:2px}
+  footer{max-width:1240px;margin:0 auto;padding:6px 24px 40px;color:var(--mute);font-size:12.5px}
+
+  #tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12.5px;padding:7px 10px;border-radius:8px;line-height:1.35;z-index:20;max-width:250px;opacity:0;transition:opacity .08s}
+  @media (max-width:1000px){.quad{grid-template-columns:1fr 1fr}}
+  @media (max-width:820px){.pair,.quad{grid-template-columns:1fr}.period{margin-left:0}}
+
+  /* v4 additions */
+  .view{display:flex;flex-direction:column;gap:22px}
+  .nav{display:inline-flex;align-items:center;gap:6px}
+  .nav button{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--line);background:#fff;color:var(--ink);font-size:18px;line-height:1}
+  .nav button:disabled{opacity:.35;cursor:default}
+  .nav span{min-width:190px;text-align:center;font-weight:700;font-size:14px}
+  .section-title{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:10px 0 -8px 4px}
+  .panel-head .seg{margin-left:auto} .panel-head .seg button{padding:5px 12px;font-size:13px}
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .hb{display:grid;grid-template-columns:78px 1fr 70px;align-items:center;gap:8px;font-size:13px;margin:8px 0}
+  .hb .track{height:14px;background:#F1F0EC;border-radius:4px;overflow:hidden}
+  .hb .fill{height:100%;border-radius:0 4px 4px 0}
+  .hb .v{text-align:right;font-variant-numeric:tabular-nums}
+  .hb .na{height:14px;border-radius:4px;background:repeating-linear-gradient(135deg,#E1DFD8 0 3px,#FBFBF8 3px 8px)}
+  .diffline{font-size:13px;color:var(--ink2);border-top:1px dashed var(--line);padding-top:8px;margin-top:4px}
+  .rating{display:flex;gap:6px;align-items:center;margin:6px 0 10px}
+  .rating i{width:16px;height:16px;border-radius:50%;border:2px solid var(--self)}
+  .rating i.on{background:var(--self)}
+  .rating span{margin-left:6px;font-size:13px;color:var(--ink2)}
+  .kv{display:flex;flex-direction:column}
+  .kv div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px dashed var(--line);font-size:14px}
+  .kv div:first-child{border-top:0}
+  .kv b{font-weight:500;color:var(--ink2)} .kv span{font-variant-numeric:tabular-nums;font-weight:700}
+  .day-ci{max-width:520px}
+  .six{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .tile .chg{font-style:normal;font-size:12.5px;color:var(--ink2);margin-left:auto;white-space:nowrap}
+  .rating i.eve{border-color:#0b6b4b} .rating i.eve.on{background:#0b6b4b}
+  .rating .lbl{width:64px;margin:0 4px 0 0;font-size:13px;color:var(--ink2)}
+  .bignum{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+  .full{grid-column:1/-1}
+  @media (max-width:1000px){.six{grid-template-columns:1fr 1fr}}
+  @media (max-width:900px){.trio{grid-template-columns:1fr}}
+  @media (max-width:620px){.six{grid-template-columns:1fr}}
+  @media (max-width:600px){.nav span{min-width:0;font-size:13px}.period{flex-wrap:wrap;gap:8px}.top-inner{padding:12px 16px}main{padding:16px}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="8" height="8" fill="#FBFBF8"/><rect width="3" height="8" fill="#E1DFD8"/></pattern>
+</defs></svg>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="app">
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">Jack's Sleep Data<small>Jack · each night next to the day after it</small></div>
+
+      <div class="period">
+        <div class="seg" role="group" aria-label="View"><button data-view="day" aria-pressed="false">Day</button><button data-view="week" aria-pressed="true">Week</button></div>
+        <div class="nav"><button id="prev" aria-label="Previous">‹</button><span id="navLabel"></span><button id="next" aria-label="Next">›</button></div>
+      </div>
+      <button class="btn ghost" id="logout">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" aria-live="polite" style="border-left:4px solid var(--accent)">
+      <div class="panel-head"><h2 id="glanceSummaryTitle">Week at a glance</h2></div>
+      <p id="glanceSummaryText" style="color:var(--ink2);line-height:1.65"></p>
+    </section>
+    <!-- ======================= WEEK VIEW ======================= -->
+    <div id="weekView" class="view">
+      <section class="panel">
+        <div class="panel-head"><h2>Every night next to the following day</h2>
+          <div class="seg" role="group" aria-label="Daytime measure"><button data-top="productive" aria-pressed="true">Productive hours</button><button data-top="steps" aria-pressed="false">Steps</button><button data-top="active" aria-pressed="false">Active minutes</button></div>
+          <p>Top: your energy that day. Middle: the day. Bottom: the night before it.</p></div>
+        <div class="chart-box box-both">
+          <div class="key"><span><i style="background:var(--self)"></i>Energy at midday</span><span><i style="background:#0b6b4b"></i>Energy in the evening</span><span><i class="sq" id="topSw" style="background:var(--self)"></i>▲ <span id="topName">Productive hours (your answer)</span></span><span><i class="sq" style="background:var(--sleep)"></i>▼ Hours slept the night before</span></div>
+          <div id="chMirror"></div></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>The week at a glance</h2></div>
+        <div class="six">
+          <div class="chart-box box-self"><h3>Energy</h3><p class="cap">Average this week (1–5, 5 = high)</p><div id="tEnergy"></div></div>
+          <div class="chart-box box-self"><h3>Productive hours</h3><p class="cap">Average per day, your answer</p><div id="tProd"></div></div>
+          <div class="chart-box box-night"><h3 id="sleepCardTitle">Time in bed, average night</h3><p class="cap" id="sleepCardCaption">Bedtime to wake time</p><div id="dTib"></div></div>
+          <div class="chart-box box-both"><h3>Average heart rate</h3><p class="cap">Night and day</p><div id="tHr"></div></div>
+          <div class="chart-box box-self"><h3>Check-ins answered</h3><p class="cap">Out of study dates in this view</p><div class="twin"><div><h4>Midday</h4><div id="dCiM"></div></div><div><h4>Evening</h4><div id="dCiE"></div></div></div></div>
+          <div class="chart-box box-self"><h3>Sleep-quality ratings</h3><p class="cap">Nights per rating (5 = best)</p><div id="dQ"></div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Energy, sleep, meals and heart rate</h2></div>
+        <div class="pair">
+          <div class="chart-box box-both"><h3>Energy and the night before</h3><p class="cap">One pair of dots per day: hours slept that night, energy the day after</p>
+            <div class="key"><span><i style="background:var(--self)"></i>Midday</span><span><i style="background:#0b6b4b"></i>Evening</span></div><div id="chEnergySleep"></div></div>
+          <div class="chart-box box-night"><h3>Sleep period</h3><p class="cap">Fell asleep → woke up; dashed = week average</p><div id="chWindow"></div></div>
+          <div class="chart-box box-self"><h3>Last meal and bedtime</h3><p class="cap">Bold row = time in between</p>
+            <div class="key"><span><i style="background:var(--self)"></i>Last meal</span><span><i style="background:#fff;border:2.5px solid var(--self);width:9px;height:9px"></i>Bedtime</span></div><div id="chMeal"></div></div>
+          <div class="chart-box box-both"><h3>Average heart rate</h3><p class="cap">Beats per minute</p>
+            <div class="key"><span><i style="background:var(--sleep)"></i>Night</span><span><i style="background:var(--day)"></i>Day</span></div><div id="chHrAvg"></div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Self-reported vs measured</h2><p>Your midday answers next to the band, with no verdict.</p></div>
+        <div class="pair">
+          <div class="chart-box box-self"><h3>Fell-asleep time</h3><p class="cap">The band vs your answer</p>
+            <div class="key"><span><i style="background:var(--sleep)"></i>Band</span><span><i style="background:var(--self)"></i>Your answer</span><span><i class="sq" style="background:var(--diff);height:3px;width:14px;border-radius:0"></i>Gap between them</span></div><div id="chDumb"></div></div>
+          <div class="chart-box box-self"><h3>Time to fall asleep</h3><p class="cap">One dot per night; on the dashed line both agree</p><div id="chScatter"></div></div>
+          <div class="chart-box box-self full"><h3>Sleep quality and efficiency</h3><p class="cap">Your rating on top, the band's efficiency below</p><div id="chQual"></div><div id="chEff"></div></div>
+        </div>
+      </section>
+
+      <section class="panel"><div class="panel-head"><h2>Sleep analysis summary</h2><p>Coverage, reported timing and next-day outcomes for the selected week.</p></div><div class="kv" id="analysisSummary"></div></section>
+
+      <h2 class="section-title">The numbers</h2>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Weekly averages</h2><p>This week next to the week before. Nights or days with no data are left out.</p></div>
+        <div class="scroll"><table class="wk-table" id="wkTable"></table></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Every night next to the following day: all numbers</h2></div>
+        <div class="scroll"><table class="daily" id="dailyTable"></table></div>
+        <p class="note">Time to fall asleep and sleep efficiency start from your reported bedtime, so they stay empty when the midday check-in was not answered.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Self-reported vs measured: all values</h2></div>
+        <div class="scroll"><table class="cmp" id="cmpTable"></table></div>
+        <p class="note">Sleep quality is rated 1–5, 5 = best. Fell-asleep time is the band's first sleep stage (heart rate and movement). Differences are your answer minus measured.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Check-in answers</h2><p>As you gave them. Comparisons use the latest answer per study date; unanswered dates stay empty.</p></div>
+        <div class="ci-grid" id="ciGrid"></div>
+      </section>
+    </div>
+
+    <!-- ======================= DAY VIEW ======================= -->
+    <div id="dayView" class="view hidden">
+      <section class="panel">
+        <div class="panel-head"><h2 id="dayTitle">The night</h2><p>From going to bed to waking up.</p></div>
+        <div class="chart-box box-night">
+          <div class="key"><span><i class="sq" style="background:var(--sleepL)"></i>In bed, not yet asleep</span><span><i class="sq" style="background:var(--sleep)"></i>Asleep</span><span><i class="sq" style="background:var(--sleepD)"></i>Awake in the night (≥ 10 min)</span><span><i style="background:var(--self)"></i>Your answer</span></div>
+          <div id="chTimeline"></div></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2 id="dayAfterTitle">The day after</h2><p>How the day went, after this night.</p></div>
+        <div class="trio">
+          <div class="chart-box box-self"><h3>Energy</h3><p class="cap">Your answers, 1–5 (5 = high)</p><div id="dEnergy"></div></div>
+          <div class="chart-box box-self"><h3>Productive hours</h3><p class="cap">Your evening answer</p><div id="dProd"></div></div>
+          <div class="chart-box box-day"><h3>Activity</h3><p class="cap">Measured by the band</p><div class="kv" id="dAct"></div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Heart rate and sleep onset</h2><div class="seg" role="group" aria-label="Heart-rate detail"><button data-hr-range="full" aria-pressed="true">Full night/day</button><button data-hr-range="onset" aria-pressed="false">Around sleep onset</button></div><p>One-minute observed averages. Markers compare the morning answers with Fitbit's estimated sleep onset; heart rate alone does not establish when sleep began.</p></div>
+        <div class="key"><span><i style="background:var(--self)"></i>Reported bedtime / sleep onset</span><span><i style="background:var(--accent)"></i>Fitbit estimated sleep onset</span></div>
+        <div id="onsetComparison" class="kv" style="margin-bottom:16px"></div>
+        <div class="chart-box box-both"><div id="chHr24"></div></div>
+        <p class="note" id="onsetHeartRateSummary"></p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Self-reported vs measured</h2><p>Your midday answers about this night next to the band.</p></div>
+        <div class="pair">
+          <div class="chart-box box-self"><h3>Time to fall asleep</h3><div id="dLat"></div></div>
+          <div class="chart-box box-self"><h3>Sleep quality and efficiency</h3><div id="dQe"></div></div>
+        </div>
+      </section>
+
+      <h2 class="section-title">The numbers</h2>
+
+      <section class="panel">
+        <div class="pair">
+          <div class="chart-box box-night"><h3 id="nightCardTitle">Night</h3><div class="kv" id="kvNight"></div></div>
+          <div class="chart-box box-day"><h3 id="dayCardTitle">Following day</h3><div class="kv" id="kvDay"></div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Check-in answers</h2></div>
+        <div class="day-ci" id="ciDay"></div>
+      </section>
+    </div>
+
+    <!-- ======================= LEGEND (both views) ======================= -->
+    <section class="panel">
+      <div class="panel-head"><h2>Legend: what every colour, mark and box means</h2></div>
+      <div class="legend">
+        <div><span class="sw" style="background:var(--sleep)"></span><span><b>Blue</b>: measured by the band during the night. Sleep onset is estimated from the band's recorded sleep stages.</span></div>
+        <div><span class="sw" style="background:var(--day)"></span><span><b>Orange</b>: measured by the band during the following day.</span></div>
+        <div><span class="sw" style="background:var(--self)"></span><span><b>Green</b>: your own answers from the check-ins. A <b>filled dot</b> is a reported time or rating; a <b>ring</b> is your reported bedtime.</span></div>
+        <div><span class="sw" style="background:linear-gradient(90deg,var(--sleepL) 33%,var(--sleep) 33% 66%,var(--sleepD) 66%)"></span><span><b>Light → dark blue</b>: in bed but not yet asleep, asleep, awake in the night.</span></div>
+        <div><span class="sw" style="background:linear-gradient(90deg,var(--q5) 20%,var(--q4) 20% 40%,var(--q3) 40% 60%,var(--q2) 60% 80%,var(--q1) 80%)"></span><span><b>Dark → light green</b>: your sleep-quality rating, 5 → 1.</span></div>
+        <div><span class="sw" style="background:var(--diff);height:3px;margin-top:9px"></span><span><b>Grey line or bar</b>: the difference between reported and measured. It is not a verdict.</span></div>
+        <div><span class="sw" style="background:linear-gradient(90deg,var(--self) 50%,#0b6b4b 50%);border-radius:50%;width:16px"></span><span><b>Light / dark green dot</b>: your energy at midday / in the evening.</span></div>
+        <div><span class="sw" style="background:linear-gradient(180deg,var(--self) 48%,#fff 48% 52%,var(--sleep) 52%)"></span><span><b>Centre line</b>: the day sits above it (productive hours, steps or active minutes), the night before below.</span></div>
+        <div><span class="sw" style="background:#fff;border:2.5px solid var(--ink);border-radius:50%;width:16px"></span><span><b>Ring on the heart-rate line</b>: shown only when an exact peak timestamp is available.</span></div>
+        <div><span class="sw" style="background:repeating-linear-gradient(135deg,#D8D6CF 0 4px,#FBFBF8 4px 8px)"></span><span><b>Grey hatching / "no data"</b>: nothing recorded. A gap is shown as empty and never estimated.</span></div>
+        <div><span class="sw" style="border-top:2px dashed var(--ink2);height:0;margin-top:9px"></span><span><b>Dashed line</b>: an average for the week, or (in the scatter) where reported equals measured.</span></div>
+        <div><span class="sw" style="background:#fff;border:2px solid #CFE0F6"></span><span><b>Blue-edged box</b>: about the night.</span></div>
+        <div><span class="sw" style="background:#fff;border:2px solid #F8D3C2"></span><span><b>Orange-edged box</b>: about the following day.</span></div>
+        <div><span class="sw" style="background:#fff;border:2px solid #BFE8D8"></span><span><b>Green-edged box</b>: your answers, or the comparison with them.</span></div>
+        <div><span class="sw" style="background:#fff;border:2px solid #DAD8D0"></span><span><b>Grey-edged box</b>: the night and the day together.</span></div>
+      </div>
+    </section>
+<section class="panel"><div class="panel-head"><h2>About these comparisons</h2></div><p class="note">Dates and times use Europe/Amsterdam. Each night is paired with its wake day. Sleep charts use the main recorded session (or the longest session if no main session is marked); other sessions are not added to that night. Night heart rate covers 22:00–06:00 and day heart rate 06:00–22:00. The daily heart-rate line shows one-minute observed averages, with missing minutes left blank. Markers show reported times and Fitbit estimated onset; no independent heart-rate sleep-onset algorithm is applied. Peak values are observed readings; their exact times are unavailable. Early-morning reported clock times use the study date as confirmed by the participant; other reported times retain their supplied dates; ambiguous or inconsistent durations stay empty. Active minutes and reported awakenings were not collected. Check-in completeness assumes one midday and one evening response per study date. These comparisons describe associations, not causes or medical advice.</p></section>
+  </main>
+  <footer>Group C · Fontys Master Digital Technology Engineering · Challenge 1 sleep dashboard. The platform only shows the data: it gives no advice and no reference values. </footer>
+</div>
+
+<div id="tip" role="tooltip"></div>
+<script>
+(function(){
+let DATA = null;
+let GLANCE_SUMMARIES={daily:{},weekly:{}};
+const has = v => v != null && !Number.isNaN(v);
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const mondayOf = d => addDays(d, -((d.getDay() + 6) % 7));
+
+function finish(rows){
+  rows.forEach((row, i) => { row.idx = i;
+    row.mealBefore = i > 0 && rows[i-1].evening && has(rows[i-1].evening.meal) ? rows[i-1].evening.meal : (row.mealBefore ?? null); });
+  return rows;
+}
+
+/* ---------- derived values ---------- */
+const bedOf = r => r.midday && has(r.midday.bed) ? r.midday.bed : null;
+const validDuration = v => has(v) && v >= 0 && v <= 720 ? v : null;
+const latM = r => (r.sleep && has(bedOf(r))) ? validDuration(r.sleep.onset - bedOf(r)) : null;
+const bedOk = r => has(latM(r));
+const fellOk = r => !!(r.sleep && r.midday && has(r.midday.fell) && Math.abs(r.midday.fell-r.sleep.onset)<=720);
+const latR = r => (r.midday && has(r.midday.fell) && has(bedOf(r))) ? validDuration(r.midday.fell - bedOf(r)) : null;
+const tib  = r => (r.sleep && has(bedOf(r))) ? validDuration(r.sleep.wake - bedOf(r)) : null;
+const eff  = r => (tib(r) && has(r.sleep.sleepMin)) ? (r.sleep.sleepMin <= tib(r) ? r.sleep.sleepMin / tib(r) * 100 : null) : null;   // all wake time excluded
+const mealGap = r => (has(r.mealBefore) && has(bedOf(r))) ? validDuration(bedOf(r) - r.mealBefore) : null;
+
+/* =======================================================================
+   Helpers
+   ======================================================================= */
+const $ = s => document.querySelector(s);
+const fmtDate = d => d.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'});
+const shortDate = d => d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+const hm = m => { if (!has(m)) return '–'; m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); };
+const dur = m => has(m) ? Math.floor(m/60) + 'h ' + String(Math.round(m%60)).padStart(2,'0') + 'm' : '–';
+const durC = m => Math.floor(m/60) + 'h' + String(Math.round(m%60)).padStart(2,'0');
+const avg = a => { a = a.filter(has); return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; };
+const sd = a => { a = a.filter(has); if (a.length < 2) return null; const m = avg(a); return Math.sqrt(avg(a.map(v => (v-m)**2))); };
+const signed = (v, unit) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(Math.round(v)) + unit;
+const or = (v, f = x => x) => has(v) ? f(v) : '–';
+const q5 = q => has(q) ? q + ' / 5' : '–';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function isoWeek(d){ const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const dn = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - dn); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - y0) / 86400000 + 1) / 7); }
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function txt(parent, x, y, s, attrs = {}){ const t = el('text', Object.assign({x, y, 'font-size': 11, fill: '#8a8984'}, attrs), parent); t.textContent = s; return t; }
+function inside(t, W){ try { const b = t.getBBox(); if (b.x < 2) t.setAttribute('x', +t.getAttribute('x') + (2 - b.x)); else if (b.x + b.width > W - 2) t.setAttribute('x', +t.getAttribute('x') - (b.x + b.width - W + 2)); } catch (e) {} return t; }
+
+const tip = $('#tip');
+function bindTip(node, html){
+  node.addEventListener('mousemove', e => { tip.innerHTML = html; tip.style.opacity = 1;
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - 260) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; });
+  node.addEventListener('mouseleave', () => tip.style.opacity = 0);
+}
+function frame(target, H, label, pad = {l: 44, r: 8, t: 10, b: 24}){
+  const box = $(target); box.innerHTML = '';
+  const W = Math.max(260, box.clientWidth);
+  const svg = el('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': label}, box);
+  return {svg, W, H, pad, base: H - pad.b};
+}
+function emptyMsg(f, msg = 'No data in this period'){ txt(f.svg, f.W / 2, f.H / 2, msg, {'text-anchor': 'middle', 'font-size': 13}); }
+function slots(f, n){ const slot = (f.W - f.pad.l - f.pad.r) / n; return {slot, cx: i => f.pad.l + i*slot + slot/2}; }
+function gridY(f, ticks, y, fmt){
+  ticks.forEach(t => { el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: y(t), y2: y(t), stroke: '#ECEAE4'}, f.svg);
+    txt(f.svg, f.pad.l - 6, y(t) + 4, fmt(t), {'text-anchor': 'end'}); });
+}
+function axisX(f, rows, cx, key, yOff = 16){
+  el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: f.base, y2: f.base, stroke: '#B4B2A9'}, f.svg);
+  const every = rows.length > 8 ? 2 : 1;
+  rows.forEach((r, i) => { if (!(i % every)) txt(f.svg, cx(i), f.base + yOff, rows.length <= 7 ? r[key].toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric'}) : shortDate(r[key]), {'text-anchor': 'middle'}); });
+}
+function hit(f, i, slot, html, y0 = f.pad.t, y1 = f.base){ const g = el('rect', {x: f.pad.l + i*slot, y: y0, width: slot, height: y1 - y0, fill: 'transparent'}, f.svg); bindTip(g, html); }
+function gap(f, x, w, label = 'no data', y0 = f.pad.t, y1 = f.base){
+  el('rect', {x, y: y0, width: w, height: y1 - y0, fill: 'url(#hatch)', rx: 4}, f.svg);
+  if (label) txt(f.svg, x + w/2, y1 - 6, label, {'text-anchor': 'middle', 'font-size': 9.5});
+}
+function barPath(x, base, end, w){
+  const rr = Math.min(4, Math.abs(end - base), w/2), up = end < base, e1 = up ? end + rr : end - rr;
+  return `M${x},${base} V${e1} Q${x},${end} ${x+rr},${end} H${x+w-rr} Q${x+w},${end} ${x+w},${e1} V${base} Z`;
+}
+function clockAxis(f, vals, padMin = 20){
+  const lo = Math.floor((Math.min(...vals) - padMin) / 60) * 60, hi = Math.ceil((Math.max(...vals) + padMin) / 60) * 60;
+  const y = m => f.pad.t + (f.base - f.pad.t) * (m - lo) / (hi - lo);
+  const step = (hi - lo) > 10*60 ? 120 : 60, ticks = []; for (let t = lo; t <= hi; t += step) ticks.push(t);
+  gridY(f, ticks, y, hm); return y;
+}
+
+/* =======================================================================
+   Week charts
+   ======================================================================= */
+let topMetric = 'productive';
+function mirrorChart(target, rows){
+  const f = frame(target, 450, 'Every night next to the following day', {l: 64, r: 8, t: 8, b: 24}), {slot, cx} = slots(f, rows.length);
+  const eTop = f.pad.t + 8, eBot = f.pad.t + 98, mTop = eBot + 30, mid = mTop + (f.base - mTop) / 2;
+  const yE = v => eBot - (eBot - eTop) * (v - 1) / 4;
+  const band = (label, yc) => txt(f.svg, 14, yc, label, {'text-anchor': 'middle', fill: '#52514e', 'font-size': 11, 'font-weight': 700, transform: `rotate(-90 14 ${yc})`});
+  const M = {
+    productive: {get: r => r.evening ? r.evening.productive : null, color: 'var(--self)', short: 'Productive', tipf: v => v + ' h productive', step: 2, min: 8, fmt: v => v + ' h'},
+    steps: {get: r => r.steps, color: 'var(--day)', short: 'Steps', tipf: v => v.toLocaleString('en-GB') + ' steps', step: 4000, min: 12000, fmt: v => Math.round(v / 1000) + 'k'},
+    active: {get: r => r.active, color: 'var(--day)', short: 'Active', tipf: v => v + ' active min', step: 30, min: 90, fmt: v => v + 'm'}
+  }[topMetric];
+  const max = Math.ceil(Math.max(M.min, ...rows.map(r => M.get(r) || 0)) / M.step) * M.step;
+  const yT = v => mid - 2 - (mid - 2 - mTop) * v / max, yB = h => mid + 2 + (f.base - mid - 2) * h / Math.max(10,...rows.map(r=>r.sleep?.sleepMin ? r.sleep.sleepMin/60 : 0));
+  // energy band
+  [1, 3, 5].forEach(v => { el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: yE(v), y2: yE(v), stroke: '#ECEAE4'}, f.svg); txt(f.svg, f.pad.l - 6, yE(v) + 4, v, {'text-anchor': 'end'}); });
+  band('Energy', (eTop + eBot) / 2); band(M.short, (mTop + mid) / 2); band('Slept', (mid + f.base) / 2);
+  // day / night grid
+  [max / 2, max].forEach(t => { el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: yT(t), y2: yT(t), stroke: '#ECEAE4'}, f.svg); txt(f.svg, f.pad.l - 6, yT(t) + 4, M.fmt(t), {'text-anchor': 'end'}); });
+  [4, 8].forEach(h => { el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: yB(h), y2: yB(h), stroke: '#ECEAE4'}, f.svg); txt(f.svg, f.pad.l - 6, yB(h) + 4, h + ' h', {'text-anchor': 'end'}); });
+  const bw = Math.min(46, slot * .55);
+  rows.forEach((r, i) => {
+    const x = cx(i) - bw/2, v = M.get(r), s = r.sleep;
+    if (has(v)) el('path', {d: barPath(x, mid - 2, yT(v), bw), fill: M.color}, f.svg); else gap(f, x, bw, '', mTop, mid - 2);
+    if (s && has(s.sleepMin)) el('path', {d: barPath(x, mid + 2, yB(s.sleepMin / 60), bw), fill: 'var(--sleep)'}, f.svg); else gap(f, x, bw, 'no data', mid + 2, f.base);
+    const em = r.midday ? r.midday.energy : null, ee = r.evening ? r.evening.energy : null;
+    if (!has(em) && !has(ee)) gap(f, cx(i) - 10, 20, '', eTop - 4, eBot + 4);
+    if (has(em) && has(ee)) el('line', {x1: cx(i) - 7, x2: cx(i) + 7, y1: yE(em), y2: yE(ee), stroke: 'var(--diff)', 'stroke-width': 2}, f.svg);
+    if (has(em)) el('circle', {cx: cx(i) - 7, cy: yE(em), r: 6, fill: 'var(--self)', stroke: '#fff', 'stroke-width': 2}, f.svg);
+    if (has(ee)) el('circle', {cx: cx(i) + 7, cy: yE(ee), r: 6, fill: '#0b6b4b', stroke: '#fff', 'stroke-width': 2}, f.svg);
+    hit(f, i, slot, `<b>${fmtDate(r.day)}</b><br>Energy: midday ${or(em, e => e + '/5')} · evening ${or(ee, e => e + '/5')}<br>${has(v) ? M.tipf(v) : (topMetric === 'productive' ? 'Productive hours not answered' : 'No data')}<br><b>Night before (${fmtDate(r.night)})</b><br>${s ? 'Slept ' + dur(s.sleepMin) : 'No sleep data'}`);
+  });
+  el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: mid, y2: mid, stroke: '#52514e', 'stroke-width': 1.2}, f.svg);
+  txt(f.svg, f.pad.l - 6, mid + 4, '0', {'text-anchor': 'end'});
+  rows.forEach((r, i) => {if(slot<40 && i%2)return;txt(f.svg, cx(i), f.H - f.pad.b + 16, (slot<70 ? shortDate(r.day) : r.day.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric'}) + ' · night before'), {'text-anchor': 'middle'});});
+}
+
+function energySleep(target, rows){
+  const box = $(target); box.innerHTML = '';
+  const W = Math.max(260, box.clientWidth), H = 230, pad = {l: 44, r: 12, t: 10, b: 36};
+  const svg = el('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Energy and the night before'}, box);
+  const pts = [];
+  rows.forEach(r => { const h = r.sleep && has(r.sleep.sleepMin) ? r.sleep.sleepMin / 60 : null; if (!has(h)) return;
+    if (r.midday && has(r.midday.energy)) pts.push({r, h, e: r.midday.energy, c: 'var(--self)', k: 'midday', dx: -4});
+    if (r.evening && has(r.evening.energy)) pts.push({r, h, e: r.evening.energy, c: '#0b6b4b', k: 'evening', dx: 4}); });
+  const hs = pts.map(p => p.h), lo = Math.max(0, Math.floor(Math.min(5, ...hs))), hi = Math.ceil(Math.max(9, ...hs));
+  const sx = v => pad.l + (W - pad.l - pad.r) * (v - lo) / (hi - lo), sy = v => pad.t + (H - pad.t - pad.b) * (5.4 - v) / 4.8;
+  [1,2,3,4,5].forEach(v => { el('line', {x1: pad.l, x2: W - pad.r, y1: sy(v), y2: sy(v), stroke: '#ECEAE4'}, svg); txt(svg, pad.l - 6, sy(v) + 4, v === 5 ? '5 high' : v, {'text-anchor': 'end'}); });
+  for (let h = lo; h <= hi; h++){ el('line', {x1: sx(h), x2: sx(h), y1: pad.t, y2: H - pad.b, stroke: '#ECEAE4'}, svg); txt(svg, sx(h), H - pad.b + 14, h + ' h', {'text-anchor': 'middle'}); }
+  el('line', {x1: pad.l, x2: W - pad.r, y1: H - pad.b, y2: H - pad.b, stroke: '#B4B2A9'}, svg);
+  txt(svg, (pad.l + W - pad.r) / 2, H - 4, 'Hours slept the night before', {'text-anchor': 'middle', fill: '#52514e'});
+  txt(svg, 12, (pad.t + H - pad.b) / 2, 'Energy', {'text-anchor': 'middle', fill: '#52514e', transform: `rotate(-90 12 ${(pad.t + H - pad.b) / 2})`});
+  if (!pts.length) txt(svg, W/2, H/2, 'No days to show', {'text-anchor': 'middle', 'font-size': 13});
+  pts.forEach(p => {
+    el('circle', {cx: sx(p.h) + p.dx, cy: sy(p.e), r: 6, fill: p.c, stroke: '#fff', 'stroke-width': 2}, svg);
+    bindTip(el('circle', {cx: sx(p.h) + p.dx, cy: sy(p.e), r: 11, fill: 'transparent'}, svg), `<b>${fmtDate(p.r.day)}</b><br>Energy at ${p.k}: ${p.e}/5<br>Night before: slept ${dur(p.r.sleep.sleepMin)}`);
+  });
+}
+
+function windowChart(target, rows){
+  const f = frame(target, 230, 'Sleep period per night', {l: 44, r: 62, t: 10, b: 24}), {slot, cx} = slots(f, rows.length);
+  const lo = Math.min(22*60,...rows.filter(r=>r.sleep).map(r=>r.sleep.onset)), hi = Math.max(35*60,...rows.filter(r=>r.sleep).map(r=>r.sleep.wake)), y = m => f.pad.t + (f.base - f.pad.t) * (Math.min(hi, Math.max(lo, m)) - lo) / (hi - lo);
+  [22,24,26,28,30,32,34].forEach(h => { el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: y(h*60), y2: y(h*60), stroke: '#ECEAE4'}, f.svg); txt(f.svg, f.pad.l - 6, y(h*60) + 4, hm(h*60), {'text-anchor': 'end'}); });
+  const bw = Math.min(22, slot * .45);
+  rows.forEach((r, i) => { const s = r.sleep, x = cx(i) - bw/2;
+    if (!s){ gap(f, x, bw, ''); hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>No data recorded`); return; }
+    el('rect', {x, y: y(s.onset), width: bw, height: Math.max(2, y(s.wake) - y(s.onset)), rx: 4, fill: 'var(--sleep)'}, f.svg);
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Fell asleep ${hm(s.onset)} (band stages)<br>Woke up ${hm(s.wake)}`);
+  });
+  [[avg(rows.map(r => r.sleep && r.sleep.onset)), 'avg asleep'], [avg(rows.map(r => r.sleep && r.sleep.wake)), 'avg wake']].forEach(([v, l]) => { if (!has(v)) return;
+    el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: y(v), y2: y(v), stroke: '#52514e', 'stroke-dasharray': '4 4', 'stroke-width': 1.2}, f.svg);
+    txt(f.svg, f.W - f.pad.r + 6, y(v) - 2, l, {fill: '#52514e', 'font-size': 10.5});
+    txt(f.svg, f.W - f.pad.r + 6, y(v) + 11, hm(v), {fill: '#52514e', 'font-size': 10.5, 'font-weight': 700});
+  });
+  axisX(f, rows, cx, 'night');
+}
+
+function mealChart(target, rows){
+  const f = frame(target, 250, 'Last meal and bedtime', {l: 44, r: 8, t: 10, b: 40}), {slot, cx} = slots(f, rows.length);
+  const vals = rows.flatMap(r => [r.mealBefore, bedOf(r)]).filter(has);
+  if (!vals.length) return emptyMsg(f);
+  const y = clockAxis(f, vals, 15);
+  rows.forEach((r, i) => {
+    const m = r.mealBefore, b = bedOf(r), x = cx(i);
+    if (has(m) && has(b) && has(mealGap(r))){
+      el('line', {x1: x, x2: x, y1: y(m) + 6, y2: y(b) - 6, stroke: 'var(--diff)', 'stroke-width': 2}, f.svg);
+      txt(f.svg, x, f.base + 14, durC(b - m), {'text-anchor': 'middle', 'font-size': 10, fill: '#52514e', 'font-weight': 700});
+    } else txt(f.svg, x, f.base + 14, '–', {'text-anchor': 'middle', 'font-size': 10});
+    if (has(m)) el('circle', {cx: x, cy: y(m), r: 6, fill: 'var(--self)', stroke: '#fff', 'stroke-width': 2}, f.svg);
+    if (has(b)) el('circle', {cx: x, cy: y(b), r: 5.5, fill: '#fff', stroke: 'var(--self)', 'stroke-width': 2.5}, f.svg);
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Last meal: ${has(m) ? hm(m) : 'not answered'}<br>Bedtime: ${has(b) ? hm(b) : 'not answered'}` + (has(m) && has(b) && has(mealGap(r)) ? `<br>Time in between: ${dur(b - m)}` : ''));
+  });
+  txt(f.svg, f.pad.l - 6, f.base + 14, 'gap', {'text-anchor': 'end', 'font-size': 10, fill: '#52514e'});
+  axisX(f, rows, cx, 'night', 31);
+}
+
+function hrAvgChart(target, rows){
+  const f = frame(target, 230, 'Average heart rate', {l: 44, r: 40, t: 10, b: 24}), {slot, cx} = slots(f, rows.length);
+  const hrValues=rows.flatMap(r=>[r.sleep?.hrAvg,r.hrDay.avg]).filter(has);
+  const lo=Math.min(40,...hrValues), hi=Math.max(100,...hrValues), y = v => f.pad.t + (f.base - f.pad.t) * (1 - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo));
+  gridY(f, [40, 60, 80, 100], y, v => v);
+  [[r => r.sleep && r.sleep.hrAvg, 'var(--sleep)', 'Night'], [r => r.hrDay.avg, 'var(--day)', 'Day']].forEach(([get, c, name]) => {
+    let d = '', pen = false, last = null;
+    rows.forEach((r, i) => { const v = get(r); if (!has(v)){ pen = false; return; } d += (pen ? 'L' : 'M') + cx(i) + ',' + y(v); pen = true; last = [cx(i), y(v)]; });
+    if (d) el('path', {d, fill: 'none', stroke: c, 'stroke-width': 2}, f.svg);
+    rows.forEach((r, i) => { const v = get(r); if (has(v)) el('circle', {cx: cx(i), cy: y(v), r: 4.5, fill: c, stroke: '#fff', 'stroke-width': 1.5}, f.svg); });
+    if (last) txt(f.svg, f.W - f.pad.r + 6, last[1] + 4, name, {fill: '#52514e', 'font-size': 10.5, 'font-weight': 700});
+  });
+  rows.forEach((r, i) => { if (!r.sleep) txt(f.svg, cx(i), f.base - 6, 'no data', {'text-anchor': 'middle', 'font-size': 9.5});
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b>: ${or(r.sleep && r.sleep.hrAvg, v => v + ' bpm')}<br><b>${fmtDate(r.day)}</b>: ${or(r.hrDay.avg, v => v + ' bpm')}`); });
+  axisX(f, rows, cx, 'night');
+}
+
+function hrPeakChart(target, rows){
+  const f = frame(target, 230, 'Peak heart rate'), {slot, cx} = slots(f, rows.length);
+  const max = Math.max(180,...rows.flatMap(r=>[r.sleep?.hrPeak,r.hrDay.peak]).filter(has)), y = v => f.pad.t + (f.base - f.pad.t) * (1 - Math.min(v, max) / max);
+  gridY(f, [0, 60, 120, 180], y, v => v);
+  const bw = Math.min(18, slot * .28);
+  rows.forEach((r, i) => {
+    const n = r.sleep ? r.sleep.hrPeak : null, d = r.hrDay.peak, x0 = cx(i) - bw - 1;
+    if (!has(n)) gap(f, x0, bw, ''); else el('path', {d: barPath(x0, f.base, y(n), bw), fill: 'var(--sleep)'}, f.svg);
+    if (!has(d)) gap(f, x0 + bw + 2, bw, ''); else el('path', {d: barPath(x0 + bw + 2, f.base, y(d), bw), fill: 'var(--day)'}, f.svg);
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>${has(n) ? `Peak ${n} bpm at ${hm(r.sleep.hrPeakAt)}` : 'No data'}<br><b>${fmtDate(r.day)}</b><br>${has(d) ? `Peak ${d} bpm at ${hm(r.hrDay.peakAt)}` : 'No data'}`);
+  });
+  axisX(f, rows, cx, 'night');
+}
+
+function dumbbell(target, rows){
+  const f = frame(target, 230, 'Fell-asleep time per night'), {slot, cx} = slots(f, rows.length);
+  const vals = rows.flatMap(r => [r.sleep ? r.sleep.onset : null, r.midday && r.midday.fell]).filter(has);
+  if (!vals.length) return emptyMsg(f);
+  const y = clockAxis(f, vals);
+  rows.forEach((r, i) => {
+    const m = r.sleep ? r.sleep.onset : null, s = r.midday ? r.midday.fell : null, x = cx(i);
+    if (has(m) && has(s) && fellOk(r)) el('line', {x1: x - 5, x2: x + 5, y1: y(m), y2: y(s), stroke: 'var(--diff)', 'stroke-width': 2}, f.svg);
+    if (has(m)) el('circle', {cx: x - 5, cy: y(m), r: 6, fill: 'var(--sleep)', stroke: '#fff', 'stroke-width': 2}, f.svg);
+    if (has(s)) el('circle', {cx: x + 5, cy: y(s), r: 6, fill: 'var(--self)', stroke: '#fff', 'stroke-width': 2}, f.svg);
+    if (!has(m) || !has(s)) txt(f.svg, x, f.base - 6, !r.sleep ? 'no band' : 'no answer', {'text-anchor': 'middle', 'font-size': 9.5});
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Band: ${has(m) ? hm(m) : 'no data'}<br>Your answer: ${has(s) ? hm(s) : 'not answered'}` + (has(m) && has(s) ? (fellOk(r) ? `<br>Difference: ${signed(s - m, ' min')}` : "<br>Reported and band dates do not line up") : ''));
+  });
+  axisX(f, rows, cx, 'night');
+}
+
+function scatter(target, rows){
+  const box = $(target); box.innerHTML = '';
+  const W = Math.max(260, box.clientWidth), H = 230, pad = {l: 44, r: 12, t: 10, b: 36};
+  const svg = el('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Time to fall asleep, reported vs measured'}, box);
+  const pts = rows.map(r => ({r, x: latR(r), y: latM(r)})).filter(p => has(p.x) && has(p.y));
+  const max = Math.max(75, Math.ceil(Math.max(0, ...pts.flatMap(p => [p.x, p.y])) / 15) * 15);
+  const sx = v => pad.l + (W - pad.l - pad.r) * v / max, sy = v => pad.t + (H - pad.t - pad.b) * (1 - v / max);
+  for (let t = 0; t <= max; t += 15){
+    el('line', {x1: pad.l, x2: W - pad.r, y1: sy(t), y2: sy(t), stroke: '#ECEAE4'}, svg);
+    el('line', {x1: sx(t), x2: sx(t), y1: pad.t, y2: H - pad.b, stroke: '#ECEAE4'}, svg);
+    txt(svg, pad.l - 6, sy(t) + 4, t, {'text-anchor': 'end'}); txt(svg, sx(t), H - pad.b + 14, t, {'text-anchor': 'middle'});
+  }
+  el('line', {x1: sx(0), y1: sy(0), x2: sx(max), y2: sy(max), stroke: '#52514e', 'stroke-dasharray': '5 4', 'stroke-width': 1.3}, svg);
+  txt(svg, sx(max) - 4, sy(max) + 14, 'same', {'text-anchor': 'end', fill: '#52514e', 'font-size': 10.5});
+  txt(svg, (pad.l + W - pad.r) / 2, H - 4, 'Your answer (min)', {'text-anchor': 'middle', fill: '#52514e'});
+  txt(svg, 12, (pad.t + H - pad.b) / 2, 'Measured (min)', {'text-anchor': 'middle', fill: '#52514e', transform: `rotate(-90 12 ${(pad.t + H - pad.b) / 2})`});
+  el('line', {x1: pad.l, x2: W - pad.r, y1: H - pad.b, y2: H - pad.b, stroke: '#B4B2A9'}, svg);
+  if (!pts.length) txt(svg, W/2, H/2, 'No nights to compare', {'text-anchor': 'middle', 'font-size': 13});
+  pts.forEach(p => {
+    el('circle', {cx: sx(p.x), cy: sy(p.y), r: 6.5, fill: 'var(--ink)', 'fill-opacity': .78, stroke: '#fff', 'stroke-width': 2}, svg);
+    bindTip(el('circle', {cx: sx(p.x), cy: sy(p.y), r: 12, fill: 'transparent'}, svg), `<b>Night of ${fmtDate(p.r.night)}</b><br>Your answer: ${p.x} min<br>Measured: ${p.y} min<br>Difference: ${signed(p.x - p.y, ' min')}`);
+  });
+}
+
+function diffBars(target, rows){
+  const f = frame(target, 230, 'Difference in time to fall asleep'), {slot, cx} = slots(f, rows.length);
+  const ds = rows.map(r => (has(latM(r)) && has(latR(r))) ? latR(r) - latM(r) : null);
+  const m = Math.max(30, Math.ceil(Math.max(0, ...ds.filter(has).map(Math.abs)) / 15) * 15);
+  const y = v => f.pad.t + (f.base - f.pad.t) * (m - v) / (2*m);
+  const ticks = []; for (let t = -m; t <= m; t += 15) ticks.push(t);
+  gridY(f, ticks, y, t => t > 0 ? '+' + t : t);
+  el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: y(0), y2: y(0), stroke: '#52514e', 'stroke-width': 1.2}, f.svg);
+  const bw = Math.min(34, slot * .5);
+  rows.forEach((r, i) => { const v = ds[i], x = cx(i) - bw/2;
+    if (!has(v)){ gap(f, x, bw); hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>${!r.sleep ? 'No band data' : 'Midday check-in not answered'}`); return; }
+    if (v !== 0) el('path', {d: barPath(x, y(0), y(v), bw), fill: 'var(--diff)'}, f.svg);
+    else el('rect', {x, y: y(0) - 1.5, width: bw, height: 3, fill: 'var(--diff)'}, f.svg);
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Your answer ${latR(r)} min · measured ${latM(r)} min<br>Difference: ${signed(v, ' min')}`);
+  });
+  axisX(f, rows, cx, 'night');
+}
+
+function awakeBars(target, rows){
+  const f = frame(target, 210, 'Awakenings per night'), {slot, cx} = slots(f, rows.length);
+  const max = Math.max(4, ...rows.flatMap(r => [r.sleep && r.sleep.awakenings || 0, r.midday && r.midday.awakenings || 0]));
+  const y = v => f.pad.t + (f.base - f.pad.t) * (1 - v / max);
+  const ticks = []; for (let t = 0; t <= max; t++) ticks.push(t);
+  gridY(f, ticks, y, t => t);
+  const bw = Math.min(18, slot * .28);
+  rows.forEach((r, i) => {
+    const m = r.sleep ? r.sleep.awakenings : null, s = r.midday ? r.midday.awakenings : null, x0 = cx(i) - bw - 1;
+    [[m, 'var(--sleep)', x0], [s, 'var(--self)', x0 + bw + 2]].forEach(([v, c, x]) => {
+      if (!has(v)) gap(f, x, bw, '');
+      else if (v === 0) el('rect', {x, y: f.base - 2, width: bw, height: 2, fill: c}, f.svg);
+      else el('path', {d: barPath(x, f.base, y(v), bw), fill: c}, f.svg);
+    });
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Measured: ${or(m)}<br>Your answer: ${has(s) ? s : 'not answered'}` + (has(m) && has(s) ? `<br>Difference: ${signed(s - m, '')}` : ''));
+  });
+  axisX(f, rows, cx, 'night');
+}
+
+function qualityStrip(target, rows){
+  const f = frame(target, 140, 'Reported sleep quality per night', {l: 60, r: 8, t: 12, b: 8}), {slot, cx} = slots(f, rows.length);
+  const y = q => f.pad.t + (f.base - f.pad.t) * (5 - q) / 4;
+  gridY(f, [5,4,3,2,1], y, q => q === 5 ? '5 best' : q);
+  rows.forEach((r, i) => { const q = r.midday ? r.midday.quality : null;
+    if (!has(q)){ el('rect', {x: cx(i) - 7, y: f.pad.t - 6, width: 14, height: f.base - f.pad.t + 12, fill: 'url(#hatch)', rx: 4}, f.svg); hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Not answered`); return; }
+    el('circle', {cx: cx(i), cy: y(q), r: 6, fill: 'var(--self)', stroke: '#fff', 'stroke-width': 2}, f.svg);
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Rated ${q5(q)}`);
+  });
+}
+function effBars(target, rows){
+  const f = frame(target, 140, 'Measured sleep efficiency per night', {l: 60, r: 8, t: 8, b: 24}), {slot, cx} = slots(f, rows.length);
+  const y = v => f.pad.t + (f.base - f.pad.t) * (1 - v / 100);
+  gridY(f, [0, 50, 100], y, v => v + '%');
+  const bw = Math.min(34, slot * .5);
+  rows.forEach((r, i) => { const v = eff(r), x = cx(i) - bw/2;
+    if (!has(v)){ gap(f, x, bw, ''); hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>${!r.sleep ? 'No band data' : 'Needs your bedtime'}`); return; }
+    el('path', {d: barPath(x, f.base, y(v), bw), fill: 'var(--sleep)'}, f.svg);
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Sleep efficiency ${v.toFixed(0)}%<br>${dur(r.sleep.sleepMin)} asleep of ${dur(tib(r))} in bed`);
+  });
+  axisX(f, rows, cx, 'night');
+}
+
+function donut(target, slices, o = {}){
+  const box = $(target); box.innerHTML = '';
+  const size = o.size || 132, R = size/2 - 2, r0 = R * .6, c = size/2;
+  const wrap = document.createElement('div'); wrap.className = 'donut-wrap'; box.appendChild(wrap);
+  const svg = el('svg', {width: size, height: size, viewBox: `0 0 ${size} ${size}`, role: 'img', 'aria-label': o.label || ''}, wrap);
+  const total = slices.reduce((a, s) => a + s.value, 0);
+  if (!total) el('circle', {cx: c, cy: c, r: (R + r0)/2, fill: 'none', stroke: 'url(#hatch)', 'stroke-width': R - r0}, svg);
+  let a0 = -Math.PI/2;
+  slices.forEach(s => { if (!s.value) return;
+    const a1 = a0 + 2*Math.PI * s.value / total, fill = s.hatch ? 'url(#hatch)' : s.color;
+    let node;
+    if (s.value === total) node = el('circle', {cx: c, cy: c, r: (R + r0)/2, fill: 'none', stroke: fill, 'stroke-width': R - r0}, svg);
+    else {
+      const large = a1 - a0 > Math.PI ? 1 : 0, p = (rad, a) => [c + rad*Math.cos(a), c + rad*Math.sin(a)];
+      const [x1,y1] = p(R,a0), [x2,y2] = p(R,a1), [x3,y3] = p(r0,a1), [x4,y4] = p(r0,a0);
+      node = el('path', {d: `M${x1},${y1} A${R},${R} 0 ${large} 1 ${x2},${y2} L${x3},${y3} A${r0},${r0} 0 ${large} 0 ${x4},${y4} Z`, fill, stroke: '#fff', 'stroke-width': 2}, svg);
+    }
+    bindTip(node, `<b>${s.label}</b><br>${s.fmt ? s.fmt(s.value) : s.value} · ${Math.round(s.value / total * 100)}%`);
+    a0 = a1;
+  });
+  if (o.center != null){ txt(svg, c, c + 2, o.center, {'text-anchor': 'middle', 'font-size': 17, 'font-weight': 700, fill: '#1E1B3A'});
+    if (o.centerSub) txt(svg, c, c + 17, o.centerSub, {'text-anchor': 'middle', 'font-size': 10.5}); }
+  const ul = document.createElement('ul'); ul.className = 'donut-list';
+  ul.innerHTML = slices.map(s => `<li><span class="sw" style="background:${s.hatch ? 'repeating-linear-gradient(135deg,#D8D6CF 0 3px,#FBFBF8 3px 6px)' : s.color};${s.hatch ? 'border:1px solid #D8D6CF' : ''}"></span>${s.label}<span class="v">${s.fmt ? s.fmt(s.value) : s.value}${total ? ' · ' + Math.round(s.value / total * 100) + '%' : ''}</span></li>`).join('');
+  wrap.appendChild(ul);
+}
+
+/* =======================================================================
+   Week panels
+   ======================================================================= */
+function weeklyLines(){
+  const S = w => w.map(r => r.sleep);
+  return [
+    ['grp', 'Your answers', 'var(--self)'],
+    ['Energy at midday (1–5)', w => avg(w.map(r => r.midday && r.midday.energy)), v => v.toFixed(1)],
+    ['Energy in the evening (1–5)', w => avg(w.map(r => r.evening && r.evening.energy)), v => v.toFixed(1)],
+    ['Productive hours', w => avg(w.map(r => r.evening && r.evening.productive)), v => v.toFixed(1) + ' h'],
+    ['Sleep quality (1–5, 5 = best)', w => avg(w.map(r => r.midday && r.midday.quality)), v => v.toFixed(1)],
+    ['Bedtime', w => avg(w.map(bedOf)), hm],
+    ['Time to fall asleep (your answer)', w => avg(w.map(latR)), v => Math.round(v) + ' min'],
+    ['Last meal', w => avg(w.map(r => r.evening && r.evening.meal)), hm],
+    ['Time from last meal to bedtime', w => avg(w.map(mealGap)), dur],
+    ['Check-ins answered', w => w.filter(r => r.midday).length + w.filter(r => r.evening).length, (v, w) => v + ' of ' + w.length * 2],
+    ['grp', 'Night (measured)', 'var(--sleep)'],
+    ['Total hours slept', w => avg(S(w).map(s => s && s.sleepMin)), dur],
+    ['Estimated onset (band)', w => avg(S(w).map(s => s && s.onset)), hm],
+    ['Wake time', w => avg(S(w).map(s => s && s.wake)), hm],
+    ['Time to fall asleep', w => avg(w.map(latM)), v => Math.round(v) + ' min'],
+    ['Sleep efficiency', w => avg(w.map(eff)), v => v.toFixed(0) + '%'],
+    ['Awakenings (≥ 10 min)', w => avg(S(w).map(s => s && s.awakenings)), v => v.toFixed(1) + ' / night'],
+    ['Sleep consistency (spread of fell-asleep time)', w => sd(S(w).map(s => s && s.onset)), v => '± ' + Math.round(v) + ' min'],
+    ['Average heart rate', w => avg(S(w).map(s => s && s.hrAvg)), v => Math.round(v) + ' bpm'],
+    ['Peak heart rate (average of nightly peaks)', w => avg(S(w).map(s => s && s.hrPeak)), v => Math.round(v) + ' bpm'],
+    ['grp', 'Following day (measured)', 'var(--day)'],
+    ['Steps', w => avg(w.map(r => r.steps)), v => Math.round(v).toLocaleString('en-GB')],
+    ['Active minutes', w => avg(w.map(r => r.active)), v => Math.round(v) + ' min'],
+    ['Average heart rate', w => avg(w.map(r => r.hrDay.avg)), v => Math.round(v) + ' bpm'],
+    ['Peak heart rate (average of daily peaks)', w => avg(w.map(r => r.hrDay.peak)), v => Math.round(v) + ' bpm'],
+  ];
+}
+function renderAnalysis(rows){
+  const recorded=rows.filter(r=>r.sleep && has(r.sleep.sleepMin));
+  const mornings=rows.filter(r=>r.midday),evenings=rows.filter(r=>r.evening);
+  const paired=rows.filter(r=>r.sleep && r.midday && has(r.midday.fell) && fellOk(r));
+  const conflicts=rows.filter(r=>r.sleep && has(bedOf(r)) && bedOf(r)>r.sleep.onset);
+  const sleepQuality=recorded.filter(r=>r.midday && has(r.midday.quality));
+  const meanSleep=avg(recorded.map(r=>r.sleep.sleepMin));
+  const row=(key,value)=>`<div><b>${key}</b><span>${value}</span></div>`;
+  $('#analysisSummary').innerHTML=
+    row('Band sleep coverage',recorded.length+' of '+rows.length+' nights')+
+    row('Average recorded sleep',has(meanSleep) ? dur(meanSleep)+' across '+recorded.length+' recorded nights' : 'No recorded sleep in this week')+
+    row('Morning / midday responses',mornings.length+' of '+rows.length+' days')+
+    row('Evening responses',evenings.length+' of '+rows.length+' days')+
+    row('Reported and band onset available',paired.length+' paired nights')+
+    row('Bedtime later than band onset',conflicts.length+' timing conflicts; no negative latency calculated')+
+    row('Sleep and quality available together',sleepQuality.length+' nights');
+  const note=document.createElement('p');note.className='note';note.textContent='Missing observations are excluded from averages. Energy and productive hours are self-reported. The charts describe the date-aligned study records; they do not establish that sleep caused a change in energy or productivity.';
+  $('#analysisSummary').appendChild(note);
+}
+
+function renderWeekly(cur, prev){
+  const cols = prev ? [prev, cur] : [cur];
+  let h = '<thead><tr><th></th>' + cols.map((w, k) => `<th>${k === cols.length - 1 ? '<b style="color:var(--ink)">This week</b>' : 'Week before'}<br>${shortDate(w.rows[0].night)} – ${shortDate(w.rows[w.rows.length-1].night)}</th>`).join('') + '</tr></thead><tbody>';
+  weeklyLines().forEach(l => {
+    if (l[0] === 'grp'){ h += `<tr><td class="grp" colspan="${cols.length+1}"><span class="dot" style="background:${l[2]}"></span>${l[1]}</td></tr>`; return; }
+    h += `<tr><td>${l[0]}</td>` + cols.map((w, k) => { const v = l[1](w.rows); return `<td${k === cols.length - 1 ? ' style="font-weight:700"' : ''}>${!has(v) ? '<span class="d">–</span>' : l[2](v, w.rows)}</td>`; }).join('') + '</tr>';
+  });
+  $('#wkTable').innerHTML = h + '</tbody>';
+}
+
+function renderGlance(rows, prev){
+  const pr = prev ? prev.rows : null;
+  const fmtChg = (cur, old, dec, unit) => { if (!(has(cur) && has(old))) return pr ? '<em class="chg">– vs week before</em>' : ''; const d = cur - old; return `<em class="chg">${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(d).toFixed(dec)}${unit} vs week before</em>`; };
+  const eM = avg(rows.map(r => r.midday && r.midday.energy)), eE = avg(rows.map(r => r.evening && r.evening.energy));
+  const oM = pr ? avg(pr.map(r => r.midday && r.midday.energy)) : null, oE = pr ? avg(pr.map(r => r.evening && r.evening.energy)) : null;
+  $('#tEnergy').innerHTML = `<div class="tile">
+    <div class="big"><b>${or(eM, v => v.toFixed(1))}</b><span><i class="sw" style="background:var(--self)"></i>at midday</span>${fmtChg(eM, oM, 1, '')}</div>
+    <div class="big"><b>${or(eE, v => v.toFixed(1))}</b><span><i class="sw" style="background:#0b6b4b"></i>in the evening</span>${fmtChg(eE, oE, 1, '')}</div></div>`;
+  const pv = rows.map(r => r.evening && r.evening.productive).filter(has), pAvg = avg(pv), pOld = pr ? avg(pr.map(r => r.evening && r.evening.productive)) : null;
+  $('#tProd').innerHTML = `<div class="tile">
+    <div class="big"><b>${or(pAvg, v => v.toFixed(1))}</b><span>hours a day</span>${fmtChg(pAvg, pOld, 1, ' h')}</div>
+    <div class="small">Total this week: ${pv.length ? pv.reduce((a, b) => a + b, 0) + ' h' : '–'} · answered on ${pv.length} of ${rows.length} days</div></div>`;
+  const both = rows.filter(r => has(tib(r)) && has(latM(r)) && has(r.sleep.sleepMin) && r.sleep.sleepMin <= r.sleep.wake-r.sleep.onset);
+  $('#sleepCardTitle').textContent=both.length ? 'Time in bed, average night' : 'Fitbit-recorded sleep';
+  $('#sleepCardCaption').textContent=both.length ? 'Consistent reported bedtime to band wake time' : 'Average main-session sleep and awake minutes';
+  if (!both.length) {
+    const recorded=rows.filter(r=>r.sleep && has(r.sleep.sleepMin));
+    donut('#dTib',[
+      {label:'Asleep',value:avg(recorded.map(r=>r.sleep.sleepMin)) || 0,color:'var(--sleep)',fmt:recorded.length ? dur : ()=> '–'},
+      {label:'Awake in recorded session',value:avg(recorded.map(r=>r.sleep.awakeMin)) || 0,color:'var(--sleepD)',fmt:recorded.length ? dur : ()=> '–'}
+    ],{label:'Fitbit-recorded sleep',center:recorded.length ? durC(avg(recorded.map(r=>r.sleep.sleepMin))) : '–',centerSub:'asleep'});
+    const note=document.createElement('p');note.className='note';
+    note.textContent=recorded.length ? 'Time in bed cannot be calculated: a matching reported bedtime is missing or conflicts with the band timing.' : 'No recorded sleep sessions in this week.';
+    $('#dTib').appendChild(note);
+  } else {
+  donut('#dTib', [
+    {label: 'Falling asleep', value: Math.round(avg(both.map(latM)) || 0), color: 'var(--sleepL)', fmt: both.length ? dur : () => '–'},
+    {label: 'Asleep', value: Math.round(avg(both.map(r => r.sleep.sleepMin)) || 0), color: 'var(--sleep)', fmt: both.length ? dur : () => '–'},
+    {label: 'Awake in the night', value: Math.round(avg(both.map(r => Math.max(0,r.sleep.wake-r.sleep.onset-r.sleep.sleepMin))) || 0), color: 'var(--sleepD)', fmt: both.length ? dur : () => '–'}
+  ], {label: 'Time in bed, average night', center: both.length ? durC(avg(both.map(tib))) : '–', centerSub: 'in bed'});
+  }
+  const nAvg = avg(rows.map(r => r.sleep && r.sleep.hrAvg)), dAvg = avg(rows.map(r => r.hrDay.avg));
+  const nP = rows.map(r => r.sleep && r.sleep.hrPeak).filter(has), dP = rows.map(r => r.hrDay.peak).filter(has);
+  $('#tHr').innerHTML = `<div class="tile">
+    <div class="big"><b>${or(nAvg, Math.round)}</b><span><i class="sw" style="background:var(--sleep)"></i>bpm at night</span></div>
+    <div class="big"><b>${or(dAvg, Math.round)}</b><span><i class="sw" style="background:var(--day)"></i>bpm during the day</span></div>
+    <div class="small">Highest this week: ${nP.length ? Math.max(...nP) : '–'} bpm at night · ${dP.length ? Math.max(...dP) : '–'} bpm in the day</div></div>`;
+  const ci = (k, t) => { const a = rows.filter(r => r[k]).length;
+    donut(t, [{label: 'Answered', value: a, color: 'var(--self)'}, {label: 'Not answered', value: rows.length - a, hatch: true}], {size: 92, label: k + ' check-ins', center: a + '/' + rows.length}); };
+  ci('midday', '#dCiM'); ci('evening', '#dCiE');
+  const qs = [5,4,3,2,1].map(q => rows.filter(r => r.midday && r.midday.quality === q).length);
+  donut('#dQ', [5,4,3,2,1].map((q, k) => ({label: 'Rated ' + q, value: qs[k], color: `var(--q${q})`, fmt: v => v + (v === 1 ? ' night' : ' nights')})),
+    {label: 'Sleep-quality ratings', center: qs.reduce((a,b)=>a+b,0), centerSub: 'nights rated'});
+}
+
+function renderDaily(rows){
+  let h = `<thead><tr class="band"><th></th><th colspan="8" class="band-night sep">Night (measured)</th><th colspan="9" class="band-day sep">Following day</th></tr>
+  <tr class="cols"><th>Night of</th><th class="sep">Fell asleep</th><th>Woke</th><th>To fall asleep</th><th>Slept</th><th>Efficiency</th><th>Awakenings</th><th>Avg HR</th><th>Peak HR</th>
+  <th class="sep">Day</th><th>Steps</th><th>Active</th><th>Avg HR</th><th>Peak HR</th><th>Energy midday</th><th>Energy evening</th><th>Productive</th><th>Last meal</th></tr></thead><tbody>`;
+  const nb = '<span class="d" title="Needs your reported bedtime">–</span>', bpm = v => v + ' bpm';
+  rows.forEach(r => {
+    const s = r.sleep;
+    h += `<tr><td>${fmtDate(r.night)}</td>`;
+    h += s ? `<td class="nightc sep">${hm(s.onset)}</td><td class="nightc">${hm(s.wake)}</td><td class="nightc">${has(latM(r)) ? latM(r) + ' min' : nb}</td><td class="nightc">${dur(s.sleepMin)}</td><td class="nightc">${has(eff(r)) ? eff(r).toFixed(0) + '%' : nb}</td><td class="nightc">${or(s.awakenings)}</td><td class="nightc">${or(s.hrAvg, bpm)}</td><td class="nightc">${or(s.hrPeak, bpm)}</td>`
+           : `<td colspan="8" class="missing sep">No data recorded for this night</td>`;
+    h += `<td class="dayc sep">${shortDate(r.day)}</td><td class="dayc">${or(r.steps, v => v.toLocaleString('en-GB'))}</td><td class="dayc">${or(r.active, v => v + ' min')}</td><td class="dayc">${or(r.hrDay.avg, bpm)}</td><td class="dayc">${or(r.hrDay.peak, bpm)}</td>
+      <td class="dayc">${or(r.midday && r.midday.energy, v => v + ' / 5')}</td><td class="dayc">${or(r.evening && r.evening.energy, v => v + ' / 5')}</td><td class="dayc">${or(r.evening && r.evening.productive, v => v + ' h')}</td><td class="dayc">${r.evening ? hm(r.evening.meal) : '–'}</td></tr>`;
+  });
+  $('#dailyTable').innerHTML = h + '</tbody>';
+}
+
+function renderCompare(rows){
+  dumbbell('#chDumb', rows); scatter('#chScatter', rows);
+  qualityStrip('#chQual', rows); effBars('#chEff', rows);
+
+  let h = `<thead><tr class="grp"><th></th><th>Bedtime</th><th colspan="3">Fell asleep</th><th colspan="3">Time to fall asleep</th><th>Quality</th><th>Efficiency</th></tr>
+  <tr><th>Night of</th><th class="s">Yours</th>${'<th class="s">Yours</th><th class="m">Measured</th><th>Diff.</th>'.repeat(2)}<th class="s">Yours</th><th class="m">Measured</th></tr></thead><tbody>`;
+  const trio = (sv, mv, f, unit, miss = 'no data') => (!has(sv) ? '<td class="d">not answered</td>' : `<td class="s">${f(sv)}</td>`) + (!has(mv) ? `<td class="d">${miss}</td>` : `<td class="m">${f(mv)}</td>`) + ((!has(sv) || !has(mv)) ? '<td class="d">–</td>' : `<td class="d">${signed(sv - mv, unit)}</td>`);
+  rows.forEach(r => { const s = r.sleep, m = r.midday;
+    h += `<tr><td>${fmtDate(r.night)}</td><td class="s">${has(bedOf(r)) ? hm(bedOf(r)) : '<span class="d">–</span>'}</td>`
+      + (fellOk(r) || !(m && has(m.fell) && s) ? trio(m && m.fell, s ? s.onset : null, hm, ' min') : `<td class="s">${hm(m.fell)}</td><td class="m">${hm(s.onset)}</td><td class="d">doesn't line up</td>`)
+      + trio(latR(r), latM(r), v => v + ' min', ' min', s ? (has(bedOf(r)) ? "doesn't line up" : 'needs bedtime') : 'no data')
+      + `<td class="s">${m ? q5(m.quality) : '<span class="d">–</span>'}</td><td class="m">${has(eff(r)) ? eff(r).toFixed(0) + '%' : '<span class="d">–</span>'}</td></tr>`;
+  });
+  $('#cmpTable').innerHTML = h + '</tbody>';
+}
+
+function ciCard(r){
+  const m = r.midday, e = r.evening;
+  const mo = m ? `<div class="slot"><b>Sleep quality</b><span>${q5(m.quality)}</span></div>
+      <div class="slot"><b>Went to bed</b><span>${hm(m.bed)}</span></div>
+      <div class="slot"><b>Think fell asleep</b><span>${hm(m.fell)}</span></div>
+      <div class="slot"><b>Energy</b><span>${or(m.energy, v => v + ' / 5')}</span></div>`
+    : `<div class="slot"><span class="expired">not answered</span></div>`;
+  const ev = e ? `<div class="slot"><b>Energy</b><span>${or(e.energy, v => v + ' / 5')}</span></div>
+      <div class="slot"><b>Productive hours</b><span>${or(e.productive, v => v + ' h')}</span></div>
+      <div class="slot"><b>Last meal</b><span>${hm(e.meal)}</span></div>`
+    : `<div class="slot"><span class="expired">not answered</span></div>`;
+  return `<div class="ci"><h4>${fmtDate(r.day)}</h4><h5>Midday · about the night before</h5>${mo}<h5>Evening</h5>${ev}</div>`;
+}
+
+/* =======================================================================
+   Day view
+   ======================================================================= */
+function nightTimeline(target, r){
+  const f = frame(target, 170, 'The night', {l: 20, r: 20, t: 40, b: 28}), s = r.sleep, bed = bedOf(r), fell = r.midday ? r.midday.fell : null;
+  const pts = [bed, fell, s && s.onset, s && s.wake].filter(has);
+  if (!pts.length) return emptyMsg(f, 'No data for this night');
+  const lo = Math.floor((Math.min(...pts) - 30) / 60) * 60, hi = Math.ceil((Math.max(...pts) + 30) / 60) * 60;
+  const x = m => f.pad.l + (f.W - f.pad.l - f.pad.r) * (m - lo) / (hi - lo);
+  const y0 = 66, bh = 36;
+  for (let t = lo; t <= hi; t += 60){ el('line', {x1: x(t), x2: x(t), y1: y0 - 6, y2: y0 + bh + 6, stroke: '#ECEAE4'}, f.svg); txt(f.svg, x(t), f.base + 14, hm(t), {'text-anchor': 'middle'}); }
+  if (!s){
+    el('rect', {x: f.pad.l, y: y0, width: f.W - f.pad.l - f.pad.r, height: bh, fill: 'url(#hatch)', rx: 6}, f.svg);
+    txt(f.svg, f.W/2, y0 + bh/2 + 4, 'No band data for this night', {'text-anchor': 'middle', 'font-size': 12.5, fill: '#52514e'});
+  } else {
+    if (has(bed) && bed < s.onset){ const g = el('rect', {x: x(bed), y: y0, width: x(s.onset) - x(bed), height: bh, fill: 'var(--sleepL)', rx: 4}, f.svg); bindTip(g, `In bed, not yet asleep: ${s.onset - bed} min`); }
+    const g2 = el('rect', {x: x(s.onset), y: y0, width: x(s.wake) - x(s.onset), height: bh, fill: 'var(--sleep)', rx: 4}, f.svg);
+    bindTip(g2, `Asleep ${dur(s.sleepMin)}${has(s.awakeMin) ? `<br>Awake in the night ${s.awakeMin} min in total` : ''}`);
+    (s.wakePeriods || []).forEach(p => { const g = el('rect', {x: x(p.start), y: y0, width: Math.max(3, x(p.start + p.len) - x(p.start)), height: bh, fill: 'var(--sleepD)'}, f.svg); bindTip(g, `Awake ${hm(p.start)}–${hm(p.start + p.len)} (${p.len} min)`); });
+    const lab = (m, l, anchor) => { el('line', {x1: x(m), x2: x(m), y1: y0 - 14, y2: y0, stroke: '#52514e'}, f.svg); inside(txt(f.svg, x(m) + (anchor === 'end' ? 3 : -3), y0 - 18, l, {'text-anchor': anchor, fill: '#1E1B3A', 'font-size': 12}), f.W); };
+    lab(s.onset, `Fitbit estimate ${hm(s.onset)}`, 'start');
+    lab(s.wake, `Woke ${hm(s.wake)}`, 'end');
+  }
+  if (has(bed)){ el('line', {x1: x(bed), x2: x(bed), y1: y0 - 14, y2: y0 + bh, stroke: 'var(--self)', 'stroke-width': 1.5}, f.svg);
+    el('circle', {cx: x(bed), cy: y0 - 14, r: 5, fill: '#fff', stroke: 'var(--self)', 'stroke-width': 2.5}, f.svg);
+    inside(txt(f.svg, x(bed) - 9, y0 - 18, `Bedtime ${hm(bed)}`, {'text-anchor': 'end', fill: '#0b6b4b', 'font-size': 12}), f.W); }
+  if (has(fell)){ el('line', {x1: x(fell), x2: x(fell), y1: y0, y2: y0 + bh + 12, stroke: 'var(--self)', 'stroke-width': 1.5}, f.svg);
+    el('circle', {cx: x(fell), cy: y0 + bh + 12, r: 5, fill: 'var(--self)'}, f.svg);
+    inside(txt(f.svg, x(fell) + 9, y0 + bh + 16, `You think you fell asleep ${hm(fell)}`, {fill: '#0b6b4b', 'font-size': 12}), f.W); }
+}
+
+let hrRange='full';
+function hr24Chart(target, r, pts){
+  const f = frame(target, 260, 'Heart rate through the night and the day', {l: 44, r: 12, t: 22, b: 24});
+  if (!pts){ return emptyMsg(f, 'Loading heart rate…'); }
+  const vals = pts.map(p => p.v).filter(has);
+  if (!vals.length) return emptyMsg(f, r.curveError ? 'Heart-rate data could not be loaded. Please refresh to retry.' : 'No heart-rate data for this night and day');
+  const lo = Math.min(40,...vals), hi = Math.max(120, Math.ceil(Math.max(...vals, r.hrDay.peak || 0, (r.sleep && r.sleep.hrPeak) || 0) / 20) * 20);
+  const markers=[r.sleep?.onset,r.midday?.bed,r.midday?.fell].filter(has);
+  const aligned=markers.length && Math.max(...markers)-Math.min(...markers)<=360;
+  const start=hrRange==='onset' && r.sleep ? (aligned ? Math.min(...markers)-60 : r.sleep.onset-60) : 1200;
+  const end=hrRange==='onset' && r.sleep ? (aligned ? Math.max(...markers)+60 : r.sleep.onset+120) : 2760;
+  const x = t => f.pad.l + (f.W - f.pad.l - f.pad.r) * (t - start) / (end-start);
+  const y = v => f.pad.t + (f.base - f.pad.t) * (1 - (v - lo) / (hi - lo));
+  const ticks = []; for (let v = lo; v <= hi; v += 20) ticks.push(v);
+  gridY(f, ticks, y, v => v);
+  const s = r.sleep;
+  if (s && s.wake>start && s.onset<end) el('rect', {x: x(Math.max(start,s.onset)), y: f.pad.t, width: x(Math.min(end,s.wake)) - x(Math.max(start,s.onset)), height: f.base - f.pad.t, fill: '#EAF2FC'}, f.svg);
+  const tick=(end-start)>600 ? 180 : 60;
+  for (let t = Math.ceil(start/tick)*tick; t <= end; t += tick){ txt(f.svg, x(t), f.base + 16, hm(t), {'text-anchor': 'middle'}); el('line', {x1: x(t), x2: x(t), y1: f.base, y2: f.base + 4, stroke: '#B4B2A9'}, f.svg); }
+  el('line', {x1: f.pad.l, x2: f.W - f.pad.r, y1: f.base, y2: f.base, stroke: '#B4B2A9'}, f.svg);
+  const asleep = t => s && t >= s.onset && t <= s.wake;
+  let seg = [], segAsleep = null;
+  const flush = () => { if (seg.length > 1) el('path', {d: 'M' + seg.map(p => x(p.t) + ',' + y(p.v)).join('L'), fill: 'none', stroke: segAsleep ? 'var(--sleep)' : 'var(--day)', 'stroke-width': 2, 'stroke-linejoin': 'round'}, f.svg); };
+  const visible=pts.filter(p=>p.t>=start && p.t<=end);
+  visible.forEach(p => { if (!has(p.v)){ flush(); seg = []; return; } const a = asleep(p.t); if (segAsleep !== null && a !== segAsleep){ const lastP = seg[seg.length - 1]; flush(); seg = lastP ? [lastP] : []; } segAsleep = a; seg.push(p); });
+  flush();
+  const peak = (t, v, l) => { if (!has(t) || !has(v)) return; el('circle', {cx: x(t), cy: y(v), r: 7, fill: '#fff', stroke: 'var(--ink)', 'stroke-width': 2.5}, f.svg);
+    inside(txt(f.svg, x(t), y(v) - 12, `${l} ${v} bpm · ${hm(t)}`, {'text-anchor': 'middle', fill: '#1E1B3A', 'font-size': 11.5, 'font-weight': 700}), f.W); };
+  if (s) peak(s.hrPeakAt, s.hrPeak, 'Night peak');
+  peak(has(r.hrDay.peakAt) ? 1440 + r.hrDay.peakAt : null, r.hrDay.peak, 'Day peak');
+  [[r.midday?.bed,'Reported bed','var(--self)',0],[r.midday?.fell,'Reported asleep','var(--self)',1],[s?.onset,'Fitbit estimate','var(--accent)',2]].forEach(([t,label,color,lane])=>{
+    if (!has(t) || t<start || t>end)return;
+    el('line',{x1:x(t),x2:x(t),y1:f.pad.t,y2:f.base,stroke:color,'stroke-dasharray':'4 3','stroke-width':1.5},f.svg);
+    inside(txt(f.svg,x(t)+4,f.pad.t+12+lane*14,label+' '+hm(t),{fill:color,'font-size':10.5}),f.W);
+  });
+  const ov = el('rect', {x: f.pad.l, y: f.pad.t, width: f.W - f.pad.l - f.pad.r, height: f.base - f.pad.t, fill: 'transparent'}, f.svg);
+  const cross = el('line', {y1: f.pad.t, y2: f.base, stroke: '#52514e', 'stroke-width': 1, opacity: 0}, f.svg);
+  ov.addEventListener('mousemove', e => {
+    if (!visible.length)return;
+    const bb = f.svg.getBoundingClientRect(), t = start + (e.clientX - bb.left - f.pad.l) / (f.W - f.pad.l - f.pad.r) * (end-start);
+    const p = visible.reduce((b, q) => Math.abs(q.t - t) < Math.abs(b.t - t) ? q : b);
+    cross.setAttribute('x1', x(p.t)); cross.setAttribute('x2', x(p.t)); cross.setAttribute('opacity', .5);
+    tip.innerHTML = `<b>${hm(p.t)}</b><br>${has(p.v) ? p.v + ' bpm' : 'no data'}${asleep(p.t) ? ' · asleep' : ''}`; tip.style.opacity = 1;
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - 260) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+  });
+  ov.addEventListener('mouseleave', () => { tip.style.opacity = 0; cross.setAttribute('opacity', 0); });
+}
+
+function hbars(rows, unit){
+  const max = Math.max(1, ...rows.map(r => r[1] || 0));
+  return rows.map(([l, v, c]) => `<div class="hb"><span>${l}</span>${has(v) ? `<div class="track"><div class="fill" style="width:${Math.max(2, v / max * 100)}%;background:${c}"></div></div>` : '<div class="na"></div>'}<span class="v">${has(v) ? v + unit : (l === 'Measured' ? 'no data' : 'not answered')}</span></div>`).join('');
+}
+function renderOnsetComparison(r,points){
+  const s=r.sleep,m=r.midday;
+  const dated=t=>has(t) ? hm(t)+' · '+shortDate(addDays(r.night,Math.floor(t/1440))) : '–';
+  const difference=s && has(m?.fell) && Math.abs(m.fell-s.onset)<=720 ? m.fell-s.onset : null;
+  const row=(label,value)=>`<div><b>${label}</b><span>${value}</span></div>`;
+  $('#onsetComparison').innerHTML=
+    row('Reported bedtime',dated(m?.bed))+
+    row('Reported fell-asleep time',dated(m?.fell))+
+    row('Fitbit estimated sleep onset',s ? dated(s.onset) : 'Not recorded')+
+    row('Reported minus Fitbit onset',has(difference) ? signed(difference,' min') : 'Not comparable');
+  if(s && has(m?.bed) && m.bed>s.onset){
+    $('#onsetComparison').innerHTML+=`<p class="note">Timing conflict: Fitbit estimates sleep began ${Math.round(m.bed-s.onset)} minutes before the reported bedtime. A negative time to fall asleep is not calculated.</p>`;
+  }
+  if(r.sleepSessionCount>1)$('#onsetComparison').innerHTML+=`<p class="note">${r.sleepSessionCount} band sessions were recorded for this wake date. The comparison uses the main session, or the longest when no main is marked.</p>`;
+  if(!s){$('#onsetHeartRateSummary').textContent='No Fitbit sleep-stage onset is available for this date.';return;}
+  if(!points){$('#onsetHeartRateSummary').textContent='Loading minute-level heart rate around Fitbit onset…';return;}
+  const describe=(from,to)=>{
+    const bins=points.filter(p=>p.t>=from && p.t<to && has(p.v) && p.samples>0);
+    const n=bins.reduce((sum,p)=>sum+p.samples,0);
+    return n ? (bins.reduce((sum,p)=>sum+p.v*p.samples,0)/n).toFixed(1)+' bpm ('+bins.length+'/20 minutes sampled)' : 'no readings';
+  };
+  $('#onsetHeartRateSummary').textContent='Heart rate in the 20 minutes before Fitbit onset: '+describe(s.onset-20,s.onset)+'. In the 20 minutes after: '+describe(s.onset,s.onset+20)+'. This is an observed comparison, not an independent sleep-onset detector.';
+}
+function renderDay(r){
+  $('#dayTitle').textContent = `The night of ${fmtDate(r.night)}`;
+  nightTimeline('#chTimeline', r);
+  hr24Chart('#chHr24', r, curveCache.get(r.idx) || null);
+  renderOnsetComparison(r,curveCache.get(r.idx) || null);
+  if (!curveCache.has(r.idx)){
+    liveCurve(r).then(p => { r.curveError=false;curveCache.set(r.idx, p); if (view === 'day' && dIdx === r.idx){hr24Chart('#chHr24', r, p);renderOnsetComparison(r,p);} })
+      .catch(() => {r.curveError=true;curveCache.set(r.idx, []); if (view === 'day' && dIdx === r.idx){hr24Chart('#chHr24', r, []);$('#onsetHeartRateSummary').textContent='Minute-level heart rate could not be loaded. Please refresh to retry.';} });
+  }
+  const lm = latM(r), lr = latR(r);
+  $('#dLat').innerHTML = hbars([['Measured', lm, 'var(--sleep)'], ['Your answer', lr, 'var(--self)']], ' min') +
+    `<p class="diffline">${has(lm) && has(lr) ? 'Difference: <b>' + signed(lr - lm, ' min') + '</b> (your answer minus measured)' : (r.sleep && has(bedOf(r)) && !bedOk(r) ? "Your bedtime and the band's sleep start don't line up for this night, so no time is shown." : 'No difference: one of the two is missing')}</p>`;
+  const dots = (v, cls) => [1,2,3,4,5].map(k => `<i class="${cls} ${has(v) && k <= v ? 'on' : ''}"></i>`).join('');
+  const em = r.midday ? r.midday.energy : null, ee = r.evening ? r.evening.energy : null;
+  $('#dayAfterTitle').textContent = `The day after: ${fmtDate(r.day)}`;
+  $('#dEnergy').innerHTML = `<div class="rating"><span class="lbl">Midday</span>${dots(em, '')}<span>${has(em) ? em + ' / 5' : 'not answered'}</span></div>
+    <div class="rating"><span class="lbl">Evening</span>${dots(ee, 'eve')}<span>${has(ee) ? ee + ' / 5' : 'not answered'}</span></div>`;
+  const pv = r.evening ? r.evening.productive : null;
+  $('#dProd').innerHTML = has(pv) ? `<div class="bignum">${pv} h</div><p class="cap">productive that day</p>` : '<div class="bignum" style="color:var(--mute)">–</div><p class="cap">not answered</p>';
+  $('#dAct').innerHTML = `<div><b>Steps</b><span>${or(r.steps, v => v.toLocaleString('en-GB'))}</span></div><div><b>Active minutes</b><span>${or(r.active, v => v + ' min')}</span></div>`;
+  const q = r.midday ? r.midday.quality : null, e = eff(r);
+  $('#dQe').innerHTML = `<p class="cap">Your rating (5 = best)</p><div class="rating">${[1,2,3,4,5].map(k => `<i class="${has(q) && k <= q ? 'on' : ''}"></i>`).join('')}<span>${has(q) ? q + ' / 5' : 'not answered'}</span></div>` +
+    `<p class="cap">Sleep efficiency, measured</p>` + hbars([['Efficiency', has(e) ? Math.round(e) : null, 'var(--sleep)']], '%').replace('not answered', r.sleep ? 'needs bedtime' : 'no data');
+  const s = r.sleep, bpmAt = (v, t) => has(v) ? `${v} bpm · ${hm(t)}` : '–';
+  $('#nightCardTitle').textContent = `Night of ${fmtDate(r.night)}`;
+  $('#dayCardTitle').textContent = `Following day, ${fmtDate(r.day)}`;
+  const kv = list => list.map(([k, v]) => `<div><b>${k}</b><span>${v}</span></div>`).join('');
+  $('#kvNight').innerHTML = kv([
+    ['Bedtime (your answer)', hm(bedOf(r))], ['Estimated onset (band)', s ? hm(s.onset) : '–'], ['Woke up', s ? hm(s.wake) : '–'],
+    ['Time to fall asleep', or(lm, v => v + ' min')], ['Hours slept', s ? dur(s.sleepMin) : '–'], ['Awake in the night', s ? or(s.awakeMin, v => v + ' min') : '–'],
+    ['Sleep efficiency', or(e, v => v.toFixed(0) + '%')], ['Awakenings (≥ 10 min)', s ? or(s.awakenings) : '–'],
+    ['Average heart rate', s ? or(s.hrAvg, v => v + ' bpm') : '–'], ['Peak heart rate', s ? bpmAt(s.hrPeak, s.hrPeakAt) : '–']]);
+  $('#kvDay').innerHTML = kv([
+    ['Steps', or(r.steps, v => v.toLocaleString('en-GB'))], ['Active minutes', or(r.active, v => v + ' min')],
+    ['Average heart rate', or(r.hrDay.avg, v => v + ' bpm')], ['Peak heart rate', bpmAt(r.hrDay.peak, r.hrDay.peakAt)],
+    ['Energy at midday', or(r.midday && r.midday.energy, v => v + ' / 5')], ['Energy in the evening', or(r.evening && r.evening.energy, v => v + ' / 5')],
+    ['Productive hours', or(r.evening && r.evening.productive, v => v + ' h')], ['Last meal', r.evening ? hm(r.evening.meal) : '–']]);
+  $('#ciDay').innerHTML = ciCard(r);
+}
+
+/* =======================================================================
+   State, navigation, login
+   ======================================================================= */
+let view = 'week', weeks = [], wIdx = 0, dIdx = 0;
+const curveCache = new Map();
+function buildWeeks(){
+  weeks = [];
+  DATA.forEach(r => { const key = ymd(mondayOf(r.night)); let w = weeks[weeks.length - 1];
+    if (!w || w.key !== key){ w = {key, monday: mondayOf(r.night), rows: []}; weeks.push(w); } w.rows.push(r); });
+}
+function render(){
+  if (!DATA) return;
+  const isWeek = view === 'week';
+  $('#weekView').classList.toggle('hidden', !isWeek); $('#dayView').classList.toggle('hidden', isWeek);
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === view));
+  if (!DATA.length){ $('#navLabel').textContent = 'No data yet'; $('#prev').disabled = $('#next').disabled = true; return; }
+  if (isWeek){
+    const w = weeks[wIdx], sun = addDays(w.monday, 6);
+    $('#navLabel').textContent = `Week ${isoWeek(w.monday)} · ${shortDate(w.monday)} – ${shortDate(sun)}`;
+    $('#prev').disabled = wIdx === 0; $('#next').disabled = wIdx === weeks.length - 1;
+    const rows = w.rows;
+    $('#glanceSummaryTitle').textContent='Week at a glance';
+    $('#glanceSummaryText').textContent=GLANCE_SUMMARIES.weekly[w.key] || 'Summary unavailable for this selection.';
+    mirrorChart('#chMirror', rows); renderGlance(rows, wIdx > 0 ? weeks[wIdx - 1] : null); energySleep('#chEnergySleep', rows); windowChart('#chWindow', rows); mealChart('#chMeal', rows);
+    hrAvgChart('#chHrAvg', rows); renderCompare(rows);
+    renderWeekly(w, wIdx > 0 ? weeks[wIdx - 1] : null); renderDaily(rows); renderAnalysis(rows);
+    $('#ciGrid').innerHTML = rows.map(ciCard).join('') ;
+  } else {
+    const r = DATA[dIdx];
+    $('#glanceSummaryTitle').textContent='Day at a glance';
+    $('#glanceSummaryText').textContent=GLANCE_SUMMARIES.daily[ymd(r.day)] || 'Summary unavailable for this selection.';
+    $('#navLabel').textContent = `Night of ${fmtDate(r.night)}`;
+    $('#prev').disabled = dIdx === 0; $('#next').disabled = dIdx === DATA.length - 1;
+    renderDay(r);
+  }
+}
+
+function dateOnly(s){ const [y,m,d]=s.slice(0,10).split('-').map(Number); return new Date(y,m-1,d); }
+const pendingCurves=new Map(),curveResolvers=new Map();let nextCurveRequest=0;
+function liveCurve(row){
+  if(pendingCurves.has(row.day.toISOString()))return pendingCurves.get(row.day.toISOString());
+  const requestId=++nextCurveRequest;
+  const promise=new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{curveResolvers.delete(requestId);reject(new Error('Heart-rate request timed out'));},60000);
+    curveResolvers.set(requestId,{resolve,reject,timer});
+    parent.postMessage({type:'sleep-dashboard:request-curve',studyDate:ymd(row.day),requestId},'*');
+  });
+  pendingCurves.set(row.day.toISOString(),promise);return promise;
+}
+window.addEventListener('message', event => {
+  if(event.source!==parent)return;
+  if(event.data?.type==='sleep-dashboard:curve'){
+    const pending=curveResolvers.get(event.data.requestId);if(!pending)return;
+    clearTimeout(pending.timer);curveResolvers.delete(event.data.requestId);
+    if(event.data.error)pending.reject(new Error('Heart-rate request failed'));else pending.resolve(event.data.points || []);
+    return;
+  }
+  if (event.data?.type !== 'sleep-dashboard:data') return;
+  try {
+    curveCache.clear();
+    DATA = event.data.rows.map((r,i) => ({...r, idx:i, night:dateOnly(r.night), day:dateOnly(r.day)}));
+    GLANCE_SUMMARIES=event.data.summaries || {daily:{},weekly:{}};
+    buildWeeks();
+    const selected = DATA.findIndex(r => ymd(r.day) === event.data.initialDate);
+    dIdx = Math.max(0,selected);
+    wIdx = Math.max(0,weeks.findIndex(w => w.rows.includes(DATA[dIdx])));
+    view = event.data.initialView === 'day' ? 'day' : 'week';
+    render();
+    parent.postMessage({type:'sleep-dashboard:rendered'},'*');
+  } catch (error) {
+    document.querySelector('#navLabel').textContent='Unable to display this selection';
+    parent.postMessage({type:'sleep-dashboard:error'},'*');
+  }
+});
+document.querySelector('#logout').addEventListener('click', () => parent.postMessage({type:'sleep-dashboard:logout'},'*'));
+parent.postMessage({type:'sleep-dashboard:ready'},'*');
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+  if (!DATA || !DATA.length || b.dataset.view === view) return;
+  if (b.dataset.view === 'day'){ const w = weeks[wIdx]; dIdx = w.rows[w.rows.length - 1].idx; }
+  else { wIdx = weeks.findIndex(w => w.rows.includes(DATA[dIdx])); }
+  view = b.dataset.view; render(); window.scrollTo(0, 0);
+}));
+$('#prev').addEventListener('click', () => { if (view === 'week') wIdx = Math.max(0, wIdx - 1); else dIdx = Math.max(0, dIdx - 1); render(); });
+$('#next').addEventListener('click', () => { if (view === 'week') wIdx = Math.min(weeks.length - 1, wIdx + 1); else dIdx = Math.min(DATA.length - 1, dIdx + 1); render(); });
+document.querySelectorAll('[data-hr-range]').forEach(button=>button.addEventListener('click',()=>{
+  hrRange=button.dataset.hrRange;
+  document.querySelectorAll('[data-hr-range]').forEach(b=>b.setAttribute('aria-pressed',b===button));
+  if(DATA?.length && view==='day')hr24Chart('#chHr24',DATA[dIdx],curveCache.get(dIdx) || null);
+}));
+document.querySelectorAll('[data-top]').forEach(b => b.addEventListener('click', () => {
+  topMetric = b.dataset.top;
+  document.querySelectorAll('[data-top]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  $('#topName').textContent = {productive: 'Productive hours (your answer)', steps: 'Steps (band)', active: 'Active minutes (band)'}[topMetric];
+  $('#topSw').style.background = topMetric === 'productive' ? 'var(--self)' : 'var(--day)';
+  if (DATA && view === 'week') mirrorChart('#chMirror', weeks[wIdx].rows);
+}));
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+
+})();
+</script>
+</body>
+</html>

@@ -90,6 +90,7 @@ def dashboard_data(db,code,start,end,fmt,period,trend_resolution='hour'):
        GROUP BY s.study_date''')
     sleep_sessions=rows(f'''SELECT s.study_date,s.observed_at AS start_at,s.end_at,
        {measure('s',fmt+'_sleep_summary_minutes_asleep','sleep')} AS minutes_asleep,
+       s.{fmt}_sleep_summary_minutes_asleep AS recorded_minutes_asleep,
        s.{fmt}_sleep_summary_minutes_awake AS minutes_awake,
        s.{fmt}_sleep_summary_minutes_to_fall_asleep AS minutes_to_fall_asleep,
        s.{fmt}_sleep_metadata_main_sleep AS main_sleep,s.{fmt}_sleep_stages AS stages

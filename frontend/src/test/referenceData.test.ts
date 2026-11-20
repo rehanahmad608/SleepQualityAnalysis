@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { civilMinute, RangeData, referenceRows } from '../dashboard/referenceData';
+import { civilMinute, recordedSleepMetrics, RangeData, referenceRows } from '../dashboard/referenceData';
 
 function dataset(): RangeData {
   return {
@@ -36,7 +36,7 @@ describe('reference dashboard data alignment', () => {
     const d = dataset(); d.sleep_sessions = []; d.morning_responses = [];
     const row = referenceRows(d)[0];
     expect(row.sleep).toBeNull(); expect(row.midday).toBeNull();
-    expect(row.active).toBeNull(); expect(row.evening).toBeNull();
+    expect(row).not.toHaveProperty('active'); expect(row.evening).toBeNull();
     expect(row.hrDay.peakAt).toBeNull();
   });
   it('uses Amsterdam civil time through DST and regardless of viewer time zone', () => {
@@ -62,5 +62,28 @@ describe('reference dashboard data alignment', () => {
     expect(referenceRows(d)[0].evening?.productive).toBe(0);
     d.evening_responses[0].productive_hours=null;
     expect(referenceRows(d)[0].evening?.productive).toBeNull();
+  });
+  it('calculates band lead-in and recorded efficiency without a morning response', () => {
+    const d=dataset();d.morning_responses=[];
+    const sleep=referenceRows(d)[0].sleep!;
+    expect(sleep.bandLatencyMinutes).toBe(20);
+    expect(sleep.recordedMinutes).toBe(480);
+    expect(sleep.recordedEfficiency).toBe(87.5);
+  });
+  it('uses elapsed time across the DST clock change', () => {
+    const session={...dataset().sleep_sessions![0],start_at:'2026-10-24T23:00:00Z',end_at:'2026-10-25T03:00:00Z',minutes_asleep:180};
+    const result=recordedSleepMetrics(session,'2026-10-25T01:00:00Z');
+    expect(result).toEqual({recordedMinutes:240,recordedMinutesAsleep:180,bandLatencyMinutes:120,recordedEfficiency:75});
+  });
+  it('does not clamp impossible measurements or turn missing values into zero', () => {
+    const session={...dataset().sleep_sessions![0],minutes_asleep:900};
+    const result=recordedSleepMetrics(session,'2026-10-05T21:00:00Z');
+    expect(result.recordedEfficiency).toBeNull();expect(result.bandLatencyMinutes).toBeNull();
+    expect(recordedSleepMetrics({...session,minutes_asleep:null}).recordedEfficiency).toBeNull();
+    expect(recordedSleepMetrics({...session,minutes_asleep:0},session.start_at).bandLatencyMinutes).toBe(0);
+  });
+  it('uses the exported band total rather than a varied demo total for efficiency', () => {
+    const session={...dataset().sleep_sessions![0],minutes_asleep:480,recorded_minutes_asleep:420};
+    expect(recordedSleepMetrics(session).recordedEfficiency).toBe(87.5);
   });
 });

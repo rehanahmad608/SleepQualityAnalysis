@@ -203,7 +203,7 @@
     <div id="weekView" class="view">
       <section class="panel">
         <div class="panel-head"><h2>Every night next to the following day</h2>
-          <div class="seg" role="group" aria-label="Daytime measure"><button data-top="productive" aria-pressed="true">Productive hours</button><button data-top="steps" aria-pressed="false">Steps</button><button data-top="active" aria-pressed="false">Active minutes</button></div>
+          <div class="seg" role="group" aria-label="Daytime measure"><button data-top="productive" aria-pressed="true">Productive hours</button><button data-top="steps" aria-pressed="false">Steps</button></div>
           <p>Top: your energy that day. Middle: the day. Bottom: the night before it.</p></div>
         <div class="chart-box box-both">
           <div class="key"><span><i style="background:var(--self)"></i>Energy at midday</span><span><i style="background:#0b6b4b"></i>Energy in the evening</span><span><i class="sq" id="topSw" style="background:var(--self)"></i>▲ <span id="topName">Productive hours (your answer)</span></span><span><i class="sq" style="background:var(--sleep)"></i>▼ Hours slept the night before</span></div>
@@ -240,8 +240,8 @@
         <div class="pair">
           <div class="chart-box box-self"><h3>Fell-asleep time</h3><p class="cap">The band vs your answer</p>
             <div class="key"><span><i style="background:var(--sleep)"></i>Band</span><span><i style="background:var(--self)"></i>Your answer</span><span><i class="sq" style="background:var(--diff);height:3px;width:14px;border-radius:0"></i>Gap between them</span></div><div id="chDumb"></div></div>
-          <div class="chart-box box-self"><h3>Time to fall asleep</h3><p class="cap">One dot per night; on the dashed line both agree</p><div id="chScatter"></div></div>
-          <div class="chart-box box-self full"><h3>Sleep quality and efficiency</h3><p class="cap">Your rating on top, the band's efficiency below</p><div id="chQual"></div><div id="chEff"></div></div>
+          <div class="chart-box box-self"><h3>Time to fall asleep</h3><p class="cap">Blue: Band measured time · Orange: Your response. Hover for details.</p><div id="chScatter"></div></div>
+          <div class="chart-box box-self full"><h3>Sleep quality and recorded efficiency</h3><p class="cap">Your rating above; recorded sleep-period efficiency below</p><div id="chQual"></div><div id="chEff"></div></div>
         </div>
       </section>
 
@@ -257,13 +257,13 @@
       <section class="panel">
         <div class="panel-head"><h2>Every night next to the following day: all numbers</h2></div>
         <div class="scroll"><table class="daily" id="dailyTable"></table></div>
-        <p class="note">Time to fall asleep and sleep efficiency start from your reported bedtime, so they stay empty when the midday check-in was not answered.</p>
+        <p class="note">Band lead-in is recording start to the first sleep stage. Recorded sleep-period efficiency is exported band asleep minutes divided by the full band recording duration. These values do not depend on a questionnaire bedtime and do not establish when you got into bed.</p>
       </section>
 
       <section class="panel">
         <div class="panel-head"><h2>Self-reported vs measured: all values</h2></div>
         <div class="scroll"><table class="cmp" id="cmpTable"></table></div>
-        <p class="note">Sleep quality is rated 1–5, 5 = best. Fell-asleep time is the band's first sleep stage (heart rate and movement). Differences are your answer minus measured.</p>
+        <p class="note">Sleep quality is rated 1–5, 5 = best. Fell-asleep time is the band's first sleep stage (heart rate and movement). Band measured time is the first sleep stage minus recording start; your response is reported sleep onset minus reported bedtime, so the durations use different starting points.</p>
       </section>
 
       <section class="panel">
@@ -275,9 +275,9 @@
     <!-- ======================= DAY VIEW ======================= -->
     <div id="dayView" class="view hidden">
       <section class="panel">
-        <div class="panel-head"><h2 id="dayTitle">The night</h2><p>From going to bed to waking up.</p></div>
+        <div class="panel-head"><h2 id="dayTitle">The night</h2><p>Band recording, estimated sleep stages and your reported times.</p></div>
         <div class="chart-box box-night">
-          <div class="key"><span><i class="sq" style="background:var(--sleepL)"></i>In bed, not yet asleep</span><span><i class="sq" style="background:var(--sleep)"></i>Asleep</span><span><i class="sq" style="background:var(--sleepD)"></i>Awake in the night (≥ 10 min)</span><span><i style="background:var(--self)"></i>Your answer</span></div>
+          <div class="key"><span><i class="sq" style="background:var(--sleepL)"></i>Recorded lead-in before first sleep stage</span><span><i class="sq" style="background:var(--sleep)"></i>Asleep</span><span><i class="sq" style="background:var(--sleepD)"></i>Awake in the night (≥ 10 min)</span><span><i style="background:var(--self)"></i>Your answer</span></div>
           <div id="chTimeline"></div></div>
       </section>
 
@@ -302,7 +302,7 @@
         <div class="panel-head"><h2>Self-reported vs measured</h2><p>Your midday answers about this night next to the band.</p></div>
         <div class="pair">
           <div class="chart-box box-self"><h3>Time to fall asleep</h3><div id="dLat"></div></div>
-          <div class="chart-box box-self"><h3>Sleep quality and efficiency</h3><div id="dQe"></div></div>
+          <div class="chart-box box-self"><h3>Sleep quality and recorded efficiency</h3><div id="dQe"></div></div>
         </div>
       </section>
 
@@ -328,11 +328,11 @@
         <div><span class="sw" style="background:var(--sleep)"></span><span><b>Blue</b>: measured by the band during the night. Sleep onset is estimated from the band's recorded sleep stages.</span></div>
         <div><span class="sw" style="background:var(--day)"></span><span><b>Orange</b>: measured by the band during the following day.</span></div>
         <div><span class="sw" style="background:var(--self)"></span><span><b>Green</b>: your own answers from the check-ins. A <b>filled dot</b> is a reported time or rating; a <b>ring</b> is your reported bedtime.</span></div>
-        <div><span class="sw" style="background:linear-gradient(90deg,var(--sleepL) 33%,var(--sleep) 33% 66%,var(--sleepD) 66%)"></span><span><b>Light → dark blue</b>: in bed but not yet asleep, asleep, awake in the night.</span></div>
+        <div><span class="sw" style="background:linear-gradient(90deg,var(--sleepL) 33%,var(--sleep) 33% 66%,var(--sleepD) 66%)"></span><span><b>Light → dark blue</b>: recorded lead-in, asleep, awake in the night.</span></div>
         <div><span class="sw" style="background:linear-gradient(90deg,var(--q5) 20%,var(--q4) 20% 40%,var(--q3) 40% 60%,var(--q2) 60% 80%,var(--q1) 80%)"></span><span><b>Dark → light green</b>: your sleep-quality rating, 5 → 1.</span></div>
         <div><span class="sw" style="background:var(--diff);height:3px;margin-top:9px"></span><span><b>Grey line or bar</b>: the difference between reported and measured. It is not a verdict.</span></div>
         <div><span class="sw" style="background:linear-gradient(90deg,var(--self) 50%,#0b6b4b 50%);border-radius:50%;width:16px"></span><span><b>Light / dark green dot</b>: your energy at midday / in the evening.</span></div>
-        <div><span class="sw" style="background:linear-gradient(180deg,var(--self) 48%,#fff 48% 52%,var(--sleep) 52%)"></span><span><b>Centre line</b>: the day sits above it (productive hours, steps or active minutes), the night before below.</span></div>
+        <div><span class="sw" style="background:linear-gradient(180deg,var(--self) 48%,#fff 48% 52%,var(--sleep) 52%)"></span><span><b>Centre line</b>: the day sits above it (productive hours or steps), the night before below.</span></div>
         <div><span class="sw" style="background:#fff;border:2.5px solid var(--ink);border-radius:50%;width:16px"></span><span><b>Ring on the heart-rate line</b>: shown only when an exact peak timestamp is available.</span></div>
         <div><span class="sw" style="background:repeating-linear-gradient(135deg,#D8D6CF 0 4px,#FBFBF8 4px 8px)"></span><span><b>Grey hatching / "no data"</b>: nothing recorded. A gap is shown as empty and never estimated.</span></div>
         <div><span class="sw" style="border-top:2px dashed var(--ink2);height:0;margin-top:9px"></span><span><b>Dashed line</b>: an average for the week, or (in the scatter) where reported equals measured.</span></div>
@@ -342,7 +342,21 @@
         <div><span class="sw" style="background:#fff;border:2px solid #DAD8D0"></span><span><b>Grey-edged box</b>: the night and the day together.</span></div>
       </div>
     </section>
-<section class="panel"><div class="panel-head"><h2>About these comparisons</h2></div><p class="note">Dates and times use Europe/Amsterdam. Each night is paired with its wake day. Sleep charts use the main recorded session (or the longest session if no main session is marked); other sessions are not added to that night. Night heart rate covers 22:00–06:00 and day heart rate 06:00–22:00. The daily heart-rate line shows one-minute observed averages, with missing minutes left blank. Markers show reported times and Fitbit estimated onset; no independent heart-rate sleep-onset algorithm is applied. Peak values are observed readings; their exact times are unavailable. Early-morning reported clock times use the study date as confirmed by the participant; other reported times retain their supplied dates; ambiguous or inconsistent durations stay empty. Active minutes and reported awakenings were not collected. Check-in completeness assumes one midday and one evening response per study date. These comparisons describe associations, not causes or medical advice.</p></section>
+<section class="panel">
+  <div class="panel-head"><h2>About these comparisons</h2></div>
+  <ul class="note comparison-notes" style="padding-left:1.3rem;display:grid;gap:.4rem">
+    <li><b>Dates:</b> Europe/Amsterdam time; each night is paired with its wake day.</li>
+    <li><b>Sleep session:</b> Main session only, or the longest if none is marked as main.</li>
+    <li><b>Heart rate:</b> Night 22:00–06:00; day 06:00–22:00. Daily charts use one-minute averages; missing readings stay blank.</li>
+    <li><b>Sleep onset:</b> Uses Fitbit sleep stages. Heart rate is shown for comparison, not used to calculate onset.</li>
+    <li><b>Time to fall asleep:</b> Band = first sleep stage minus recording start. Your response = reported sleep onset minus bedtime.</li>
+    <li><b>Recorded efficiency:</b> Original band asleep minutes ÷ full recording minutes × 100; independent of reported bedtime and adjusted demo totals.</li>
+    <li><b>Reported times:</b> Early-morning answers use the study date; other dates stay as supplied. Conflicts may remain; invalid durations stay blank.</li>
+    <li><b>Unavailable details:</b> Exact heart-rate peak times and self-reported awakenings were not available.</li>
+    <li><b>Check-in coverage:</b> Assumes one midday and one evening response per study day.</li>
+    <li><b>Interpretation:</b> Comparisons show associations, not causes or medical advice.</li>
+  </ul>
+</section>
   </main>
   <footer>Group C · Fontys Master Digital Technology Engineering · Challenge 1 sleep dashboard. The platform only shows the data: it gives no advice and no reference values. </footer>
 </div>
@@ -367,11 +381,12 @@ function finish(rows){
 const bedOf = r => r.midday && has(r.midday.bed) ? r.midday.bed : null;
 const validDuration = v => has(v) && v >= 0 && v <= 720 ? v : null;
 const latM = r => (r.sleep && has(bedOf(r))) ? validDuration(r.sleep.onset - bedOf(r)) : null;
+const bandLat = r => r.sleep && has(r.sleep.bandLatencyMinutes) ? r.sleep.bandLatencyMinutes : null;
 const bedOk = r => has(latM(r));
 const fellOk = r => !!(r.sleep && r.midday && has(r.midday.fell) && Math.abs(r.midday.fell-r.sleep.onset)<=720);
 const latR = r => (r.midday && has(r.midday.fell) && has(bedOf(r))) ? validDuration(r.midday.fell - bedOf(r)) : null;
 const tib  = r => (r.sleep && has(bedOf(r))) ? validDuration(r.sleep.wake - bedOf(r)) : null;
-const eff  = r => (tib(r) && has(r.sleep.sleepMin)) ? (r.sleep.sleepMin <= tib(r) ? r.sleep.sleepMin / tib(r) * 100 : null) : null;   // all wake time excluded
+const eff = r => r.sleep && has(r.sleep.recordedEfficiency) ? r.sleep.recordedEfficiency : null;
 const mealGap = r => (has(r.mealBefore) && has(bedOf(r))) ? validDuration(bedOf(r) - r.mealBefore) : null;
 
 /* =======================================================================
@@ -446,7 +461,6 @@ function mirrorChart(target, rows){
   const M = {
     productive: {get: r => r.evening ? r.evening.productive : null, color: 'var(--self)', short: 'Productive', tipf: v => v + ' h productive', step: 2, min: 8, fmt: v => v + ' h'},
     steps: {get: r => r.steps, color: 'var(--day)', short: 'Steps', tipf: v => v.toLocaleString('en-GB') + ' steps', step: 4000, min: 12000, fmt: v => Math.round(v / 1000) + 'k'},
-    active: {get: r => r.active, color: 'var(--day)', short: 'Active', tipf: v => v + ' active min', step: 30, min: 90, fmt: v => v + 'm'}
   }[topMetric];
   const max = Math.ceil(Math.max(M.min, ...rows.map(r => M.get(r) || 0)) / M.step) * M.step;
   const yT = v => mid - 2 - (mid - 2 - mTop) * v / max, yB = h => mid + 2 + (f.base - mid - 2) * h / Math.max(10,...rows.map(r=>r.sleep?.sleepMin ? r.sleep.sleepMin/60 : 0));
@@ -580,27 +594,33 @@ function dumbbell(target, rows){
 }
 
 function scatter(target, rows){
-  const box = $(target); box.innerHTML = '';
-  const W = Math.max(260, box.clientWidth), H = 230, pad = {l: 44, r: 12, t: 10, b: 36};
-  const svg = el('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Time to fall asleep, reported vs measured'}, box);
-  const pts = rows.map(r => ({r, x: latR(r), y: latM(r)})).filter(p => has(p.x) && has(p.y));
-  const max = Math.max(75, Math.ceil(Math.max(0, ...pts.flatMap(p => [p.x, p.y])) / 15) * 15);
-  const sx = v => pad.l + (W - pad.l - pad.r) * v / max, sy = v => pad.t + (H - pad.t - pad.b) * (1 - v / max);
-  for (let t = 0; t <= max; t += 15){
-    el('line', {x1: pad.l, x2: W - pad.r, y1: sy(t), y2: sy(t), stroke: '#ECEAE4'}, svg);
-    el('line', {x1: sx(t), x2: sx(t), y1: pad.t, y2: H - pad.b, stroke: '#ECEAE4'}, svg);
-    txt(svg, pad.l - 6, sy(t) + 4, t, {'text-anchor': 'end'}); txt(svg, sx(t), H - pad.b + 14, t, {'text-anchor': 'middle'});
-  }
-  el('line', {x1: sx(0), y1: sy(0), x2: sx(max), y2: sy(max), stroke: '#52514e', 'stroke-dasharray': '5 4', 'stroke-width': 1.3}, svg);
-  txt(svg, sx(max) - 4, sy(max) + 14, 'same', {'text-anchor': 'end', fill: '#52514e', 'font-size': 10.5});
-  txt(svg, (pad.l + W - pad.r) / 2, H - 4, 'Your answer (min)', {'text-anchor': 'middle', fill: '#52514e'});
-  txt(svg, 12, (pad.t + H - pad.b) / 2, 'Measured (min)', {'text-anchor': 'middle', fill: '#52514e', transform: `rotate(-90 12 ${(pad.t + H - pad.b) / 2})`});
-  el('line', {x1: pad.l, x2: W - pad.r, y1: H - pad.b, y2: H - pad.b, stroke: '#B4B2A9'}, svg);
-  if (!pts.length) txt(svg, W/2, H/2, 'No nights to compare', {'text-anchor': 'middle', 'font-size': 13});
-  pts.forEach(p => {
-    el('circle', {cx: sx(p.x), cy: sy(p.y), r: 6.5, fill: 'var(--ink)', 'fill-opacity': .78, stroke: '#fff', 'stroke-width': 2}, svg);
-    bindTip(el('circle', {cx: sx(p.x), cy: sy(p.y), r: 12, fill: 'transparent'}, svg), `<b>Night of ${fmtDate(p.r.night)}</b><br>Your answer: ${p.x} min<br>Measured: ${p.y} min<br>Difference: ${signed(p.x - p.y, ' min')}`);
+  const f=frame(target,260,'Time to fall asleep: band measured time and your response'), {slot,cx}=slots(f,rows.length);
+  const values=rows.map(bandLat),responses=rows.map(latR);
+  const maximum=Math.max(15,Math.ceil(Math.max(0,...values.filter(has),...responses.filter(has))/5)*5);
+  const step=Math.max(5,Math.ceil(maximum/5/5)*5);
+  const y=value=>f.base-(f.base-f.pad.t)*value/maximum;
+  const ticks=[];for(let value=0;value<=maximum;value+=step)ticks.push(value);
+  gridY(f,ticks,y,value=>value+' min');
+  rows.forEach((r,i)=>{
+    const value=values[i],response=responses[i];
+    if(has(response)){
+      const label=`Night of ${fmtDate(r.night)}: Your response ${response} min; reported bedtime ${hm(bedOf(r))}; reported sleep onset ${hm(r.midday.fell)}`;
+      const dot=el('circle',{cx:cx(i)+Math.min(10,slot*.15),cy:y(response),r:6.5,fill:'var(--day)',stroke:'#fff','stroke-width':2,'data-study-date':ymd(r.day),'data-your-response':response,tabindex:0,'aria-label':label},f.svg);
+      el('title',{},dot).textContent=label;
+      bindTip(dot,`<b>Night of ${fmtDate(r.night)}</b><br>Your response: ${response} min<br>Reported bedtime: ${hm(bedOf(r))}<br>Reported sleep onset: ${hm(r.midday.fell)}`);
+    }
+    if(!has(value)){
+      txt(f.svg,cx(i),f.base-8,'No band timing',{'text-anchor':'middle','font-size':10});
+      return;
+    }
+    const label=`Night of ${fmtDate(r.night)}: recording started ${hm(r.sleep.sessionStart)}; first sleep stage ${hm(r.sleep.onset)}; time to fall asleep ${value} min`;
+    const dot=el('circle',{cx:cx(i),cy:y(value),r:6.5,fill:'var(--sleep)',stroke:'#fff','stroke-width':2,'data-study-date':ymd(r.day),'data-band-latency':value,tabindex:0,'aria-label':label},f.svg);
+    el('title',{},dot).textContent=label;
+    bindTip(dot,`<b>Night of ${fmtDate(r.night)}</b><br>Recording started: ${hm(r.sleep.sessionStart)}<br>First sleep stage: ${hm(r.sleep.onset)}<br>Time to fall asleep (band): ${value} min`);
   });
+  axisX(f,rows,cx,'night');
+  if(!values.some(has) && !responses.some(has))emptyMsg(f);
+  const note=document.createElement('p');note.className='note';note.textContent='Band measured time (blue) = first recorded asleep stage minus band recording start. Your response (orange) = reported sleep onset minus reported bedtime. Missing responses stay blank; the two values use different starting points.';$(target).appendChild(note);
 }
 
 function diffBars(target, rows){
@@ -651,14 +671,14 @@ function qualityStrip(target, rows){
   });
 }
 function effBars(target, rows){
-  const f = frame(target, 140, 'Measured sleep efficiency per night', {l: 60, r: 8, t: 8, b: 24}), {slot, cx} = slots(f, rows.length);
+  const f = frame(target, 140, 'Recorded sleep-period efficiency per night', {l: 60, r: 8, t: 8, b: 24}), {slot, cx} = slots(f, rows.length);
   const y = v => f.pad.t + (f.base - f.pad.t) * (1 - v / 100);
   gridY(f, [0, 50, 100], y, v => v + '%');
   const bw = Math.min(34, slot * .5);
   rows.forEach((r, i) => { const v = eff(r), x = cx(i) - bw/2;
-    if (!has(v)){ gap(f, x, bw, ''); hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>${!r.sleep ? 'No band data' : 'Needs your bedtime'}`); return; }
-    el('path', {d: barPath(x, f.base, y(v), bw), fill: 'var(--sleep)'}, f.svg);
-    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Sleep efficiency ${v.toFixed(0)}%<br>${dur(r.sleep.sleepMin)} asleep of ${dur(tib(r))} in bed`);
+    if (!has(v)){ gap(f, x, bw, ''); hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>${!r.sleep ? 'No band data' : 'Recorded duration or asleep minutes unavailable'}`); return; }
+    el('path', {d: barPath(x, f.base, y(v), bw), fill: 'var(--sleep)','data-study-date':ymd(r.day),'data-recorded-efficiency':v}, f.svg);
+    hit(f, i, slot, `<b>Night of ${fmtDate(r.night)}</b><br>Sleep efficiency ${v.toFixed(1)}%<br>${dur(r.sleep.recordedMinutesAsleep)} exported asleep of ${dur(r.sleep.recordedMinutes)} recorded by the band`);
   });
   axisX(f, rows, cx, 'night');
 }
@@ -710,15 +730,14 @@ function weeklyLines(){
     ['Total hours slept', w => avg(S(w).map(s => s && s.sleepMin)), dur],
     ['Estimated onset (band)', w => avg(S(w).map(s => s && s.onset)), hm],
     ['Wake time', w => avg(S(w).map(s => s && s.wake)), hm],
-    ['Time to fall asleep', w => avg(w.map(latM)), v => Math.round(v) + ' min'],
-    ['Sleep efficiency', w => avg(w.map(eff)), v => v.toFixed(0) + '%'],
+    ['Band start to first sleep stage', w => avg(w.map(bandLat)), v => Math.round(v) + ' min'],
+    ['Recorded sleep-period efficiency', w => avg(w.map(eff)), v => v.toFixed(0) + '%'],
     ['Awakenings (≥ 10 min)', w => avg(S(w).map(s => s && s.awakenings)), v => v.toFixed(1) + ' / night'],
     ['Sleep consistency (spread of fell-asleep time)', w => sd(S(w).map(s => s && s.onset)), v => '± ' + Math.round(v) + ' min'],
     ['Average heart rate', w => avg(S(w).map(s => s && s.hrAvg)), v => Math.round(v) + ' bpm'],
     ['Peak heart rate (average of nightly peaks)', w => avg(S(w).map(s => s && s.hrPeak)), v => Math.round(v) + ' bpm'],
     ['grp', 'Following day (measured)', 'var(--day)'],
     ['Steps', w => avg(w.map(r => r.steps)), v => Math.round(v).toLocaleString('en-GB')],
-    ['Active minutes', w => avg(w.map(r => r.active)), v => Math.round(v) + ' min'],
     ['Average heart rate', w => avg(w.map(r => r.hrDay.avg)), v => Math.round(v) + ' bpm'],
     ['Peak heart rate (average of daily peaks)', w => avg(w.map(r => r.hrDay.peak)), v => Math.round(v) + ' bpm'],
   ];
@@ -799,16 +818,16 @@ function renderGlance(rows, prev){
 }
 
 function renderDaily(rows){
-  let h = `<thead><tr class="band"><th></th><th colspan="8" class="band-night sep">Night (measured)</th><th colspan="9" class="band-day sep">Following day</th></tr>
-  <tr class="cols"><th>Night of</th><th class="sep">Fell asleep</th><th>Woke</th><th>To fall asleep</th><th>Slept</th><th>Efficiency</th><th>Awakenings</th><th>Avg HR</th><th>Peak HR</th>
-  <th class="sep">Day</th><th>Steps</th><th>Active</th><th>Avg HR</th><th>Peak HR</th><th>Energy midday</th><th>Energy evening</th><th>Productive</th><th>Last meal</th></tr></thead><tbody>`;
-  const nb = '<span class="d" title="Needs your reported bedtime">–</span>', bpm = v => v + ' bpm';
+  let h = `<thead><tr class="band"><th></th><th colspan="8" class="band-night sep">Night (measured)</th><th colspan="8" class="band-day sep">Following day</th></tr>
+  <tr class="cols"><th>Night of</th><th class="sep">Fell asleep</th><th>Woke</th><th title="Band recording start to first sleep stage">To first sleep stage</th><th>Slept</th><th title="Asleep minutes divided by elapsed band recording minutes">Recorded efficiency</th><th>Awakenings</th><th>Avg HR</th><th>Peak HR</th>
+  <th class="sep">Day</th><th>Steps</th><th>Avg HR</th><th>Peak HR</th><th>Energy midday</th><th>Energy evening</th><th>Productive</th><th>Last meal</th></tr></thead><tbody>`;
+  const nb = '<span class="d" title="Band recording or stage timing unavailable">–</span>', bpm = v => v + ' bpm';
   rows.forEach(r => {
     const s = r.sleep;
-    h += `<tr><td>${fmtDate(r.night)}</td>`;
-    h += s ? `<td class="nightc sep">${hm(s.onset)}</td><td class="nightc">${hm(s.wake)}</td><td class="nightc">${has(latM(r)) ? latM(r) + ' min' : nb}</td><td class="nightc">${dur(s.sleepMin)}</td><td class="nightc">${has(eff(r)) ? eff(r).toFixed(0) + '%' : nb}</td><td class="nightc">${or(s.awakenings)}</td><td class="nightc">${or(s.hrAvg, bpm)}</td><td class="nightc">${or(s.hrPeak, bpm)}</td>`
+    h += `<tr data-study-date="${ymd(r.day)}"><td>${fmtDate(r.night)}</td>`;
+    h += s ? `<td class="nightc sep">${hm(s.onset)}</td><td class="nightc">${hm(s.wake)}</td><td class="nightc" data-field="band-latency">${has(bandLat(r)) ? Math.round(bandLat(r)*10)/10 + ' min' : nb}</td><td class="nightc">${dur(s.sleepMin)}</td><td class="nightc" data-field="recorded-efficiency">${has(eff(r)) ? eff(r).toFixed(1) + '%' : nb}</td><td class="nightc">${or(s.awakenings)}</td><td class="nightc">${or(s.hrAvg, bpm)}</td><td class="nightc">${or(s.hrPeak, bpm)}</td>`
            : `<td colspan="8" class="missing sep">No data recorded for this night</td>`;
-    h += `<td class="dayc sep">${shortDate(r.day)}</td><td class="dayc">${or(r.steps, v => v.toLocaleString('en-GB'))}</td><td class="dayc">${or(r.active, v => v + ' min')}</td><td class="dayc">${or(r.hrDay.avg, bpm)}</td><td class="dayc">${or(r.hrDay.peak, bpm)}</td>
+    h += `<td class="dayc sep">${shortDate(r.day)}</td><td class="dayc">${or(r.steps, v => v.toLocaleString('en-GB'))}</td><td class="dayc">${or(r.hrDay.avg, bpm)}</td><td class="dayc">${or(r.hrDay.peak, bpm)}</td>
       <td class="dayc">${or(r.midday && r.midday.energy, v => v + ' / 5')}</td><td class="dayc">${or(r.evening && r.evening.energy, v => v + ' / 5')}</td><td class="dayc">${or(r.evening && r.evening.productive, v => v + ' h')}</td><td class="dayc">${r.evening ? hm(r.evening.meal) : '–'}</td></tr>`;
   });
   $('#dailyTable').innerHTML = h + '</tbody>';
@@ -818,13 +837,12 @@ function renderCompare(rows){
   dumbbell('#chDumb', rows); scatter('#chScatter', rows);
   qualityStrip('#chQual', rows); effBars('#chEff', rows);
 
-  let h = `<thead><tr class="grp"><th></th><th>Bedtime</th><th colspan="3">Fell asleep</th><th colspan="3">Time to fall asleep</th><th>Quality</th><th>Efficiency</th></tr>
-  <tr><th>Night of</th><th class="s">Yours</th>${'<th class="s">Yours</th><th class="m">Measured</th><th>Diff.</th>'.repeat(2)}<th class="s">Yours</th><th class="m">Measured</th></tr></thead><tbody>`;
-  const trio = (sv, mv, f, unit, miss = 'no data') => (!has(sv) ? '<td class="d">not answered</td>' : `<td class="s">${f(sv)}</td>`) + (!has(mv) ? `<td class="d">${miss}</td>` : `<td class="m">${f(mv)}</td>`) + ((!has(sv) || !has(mv)) ? '<td class="d">–</td>' : `<td class="d">${signed(sv - mv, unit)}</td>`);
+  let h = `<thead><tr class="grp"><th></th><th>Bedtime</th><th colspan="2">Fell asleep</th><th colspan="2">Time to fall asleep</th><th>Quality</th><th title="Asleep minutes divided by elapsed band recording minutes">Recorded efficiency</th></tr>
+  <tr><th>Night of</th><th class="s">Yours</th><th class="s">Yours</th><th class="m">Band estimate</th><th class="s">Your response</th><th class="m">Band measured time</th><th class="s">Yours</th><th class="m">Measured</th></tr></thead><tbody>`;
   rows.forEach(r => { const s = r.sleep, m = r.midday;
     h += `<tr><td>${fmtDate(r.night)}</td><td class="s">${has(bedOf(r)) ? hm(bedOf(r)) : '<span class="d">–</span>'}</td>`
-      + (fellOk(r) || !(m && has(m.fell) && s) ? trio(m && m.fell, s ? s.onset : null, hm, ' min') : `<td class="s">${hm(m.fell)}</td><td class="m">${hm(s.onset)}</td><td class="d">doesn't line up</td>`)
-      + trio(latR(r), latM(r), v => v + ' min', ' min', s ? (has(bedOf(r)) ? "doesn't line up" : 'needs bedtime') : 'no data')
+      + `<td class="s">${m && has(m.fell) ? hm(m.fell) : '<span class="d">not answered</span>'}</td><td class="m">${s ? hm(s.onset) : '<span class="d">no data</span>'}</td>`
+      + `<td class="s">${or(latR(r),v=>v+' min')}</td><td class="m">${or(bandLat(r),v=>v+' min')}</td>`
       + `<td class="s">${m ? q5(m.quality) : '<span class="d">–</span>'}</td><td class="m">${has(eff(r)) ? eff(r).toFixed(0) + '%' : '<span class="d">–</span>'}</td></tr>`;
   });
   $('#cmpTable').innerHTML = h + '</tbody>';
@@ -849,7 +867,7 @@ function ciCard(r){
    ======================================================================= */
 function nightTimeline(target, r){
   const f = frame(target, 170, 'The night', {l: 20, r: 20, t: 40, b: 28}), s = r.sleep, bed = bedOf(r), fell = r.midday ? r.midday.fell : null;
-  const pts = [bed, fell, s && s.onset, s && s.wake].filter(has);
+  const pts = [bed, fell, s && s.sessionStart, s && s.onset, s && s.wake].filter(has);
   if (!pts.length) return emptyMsg(f, 'No data for this night');
   const lo = Math.floor((Math.min(...pts) - 30) / 60) * 60, hi = Math.ceil((Math.max(...pts) + 30) / 60) * 60;
   const x = m => f.pad.l + (f.W - f.pad.l - f.pad.r) * (m - lo) / (hi - lo);
@@ -859,7 +877,7 @@ function nightTimeline(target, r){
     el('rect', {x: f.pad.l, y: y0, width: f.W - f.pad.l - f.pad.r, height: bh, fill: 'url(#hatch)', rx: 6}, f.svg);
     txt(f.svg, f.W/2, y0 + bh/2 + 4, 'No band data for this night', {'text-anchor': 'middle', 'font-size': 12.5, fill: '#52514e'});
   } else {
-    if (has(bed) && bed < s.onset){ const g = el('rect', {x: x(bed), y: y0, width: x(s.onset) - x(bed), height: bh, fill: 'var(--sleepL)', rx: 4}, f.svg); bindTip(g, `In bed, not yet asleep: ${s.onset - bed} min`); }
+    if (has(s.sessionStart) && s.sessionStart < s.onset){ const g = el('rect', {x: x(s.sessionStart), y: y0, width: x(s.onset) - x(s.sessionStart), height: bh, fill: 'var(--sleepL)', rx: 4}, f.svg); bindTip(g, `Band recording to first sleep stage: ${bandLat(r)} min`); }
     const g2 = el('rect', {x: x(s.onset), y: y0, width: x(s.wake) - x(s.onset), height: bh, fill: 'var(--sleep)', rx: 4}, f.svg);
     bindTip(g2, `Asleep ${dur(s.sleepMin)}${has(s.awakeMin) ? `<br>Awake in the night ${s.awakeMin} min in total` : ''}`);
     (s.wakePeriods || []).forEach(p => { const g = el('rect', {x: x(p.start), y: y0, width: Math.max(3, x(p.start + p.len) - x(p.start)), height: bh, fill: 'var(--sleepD)'}, f.svg); bindTip(g, `Awake ${hm(p.start)}–${hm(p.start + p.len)} (${p.len} min)`); });
@@ -959,9 +977,9 @@ function renderDay(r){
     liveCurve(r).then(p => { r.curveError=false;curveCache.set(r.idx, p); if (view === 'day' && dIdx === r.idx){hr24Chart('#chHr24', r, p);renderOnsetComparison(r,p);} })
       .catch(() => {r.curveError=true;curveCache.set(r.idx, []); if (view === 'day' && dIdx === r.idx){hr24Chart('#chHr24', r, []);$('#onsetHeartRateSummary').textContent='Minute-level heart rate could not be loaded. Please refresh to retry.';} });
   }
-  const lm = latM(r), lr = latR(r);
-  $('#dLat').innerHTML = hbars([['Measured', lm, 'var(--sleep)'], ['Your answer', lr, 'var(--self)']], ' min') +
-    `<p class="diffline">${has(lm) && has(lr) ? 'Difference: <b>' + signed(lr - lm, ' min') + '</b> (your answer minus measured)' : (r.sleep && has(bedOf(r)) && !bedOk(r) ? "Your bedtime and the band's sleep start don't line up for this night, so no time is shown." : 'No difference: one of the two is missing')}</p>`;
+  const lm = bandLat(r), lr = latR(r);
+  $('#dLat').innerHTML = hbars([['Band lead-in', lm, 'var(--sleep)'], ['Your response', lr, 'var(--self)']], ' min') +
+    '<p class="diffline">Band lead-in starts at the recorded interval; your response starts at reported bedtime. The start times may differ.</p>';
   const dots = (v, cls) => [1,2,3,4,5].map(k => `<i class="${cls} ${has(v) && k <= v ? 'on' : ''}"></i>`).join('');
   const em = r.midday ? r.midday.energy : null, ee = r.evening ? r.evening.energy : null;
   $('#dayAfterTitle').textContent = `The day after: ${fmtDate(r.day)}`;
@@ -969,21 +987,21 @@ function renderDay(r){
     <div class="rating"><span class="lbl">Evening</span>${dots(ee, 'eve')}<span>${has(ee) ? ee + ' / 5' : 'not answered'}</span></div>`;
   const pv = r.evening ? r.evening.productive : null;
   $('#dProd').innerHTML = has(pv) ? `<div class="bignum">${pv} h</div><p class="cap">productive that day</p>` : '<div class="bignum" style="color:var(--mute)">–</div><p class="cap">not answered</p>';
-  $('#dAct').innerHTML = `<div><b>Steps</b><span>${or(r.steps, v => v.toLocaleString('en-GB'))}</span></div><div><b>Active minutes</b><span>${or(r.active, v => v + ' min')}</span></div>`;
+  $('#dAct').innerHTML = `<div><b>Steps</b><span>${or(r.steps, v => v.toLocaleString('en-GB'))}</span></div>`;
   const q = r.midday ? r.midday.quality : null, e = eff(r);
   $('#dQe').innerHTML = `<p class="cap">Your rating (5 = best)</p><div class="rating">${[1,2,3,4,5].map(k => `<i class="${has(q) && k <= q ? 'on' : ''}"></i>`).join('')}<span>${has(q) ? q + ' / 5' : 'not answered'}</span></div>` +
-    `<p class="cap">Sleep efficiency, measured</p>` + hbars([['Efficiency', has(e) ? Math.round(e) : null, 'var(--sleep)']], '%').replace('not answered', r.sleep ? 'needs bedtime' : 'no data');
+    `<p class="cap">Recorded sleep-period efficiency</p>` + hbars([['Efficiency', has(e) ? Math.round(e) : null, 'var(--sleep)']], '%').replace('not answered', r.sleep ? 'recording duration unavailable' : 'no data');
   const s = r.sleep, bpmAt = (v, t) => has(v) ? `${v} bpm · ${hm(t)}` : '–';
   $('#nightCardTitle').textContent = `Night of ${fmtDate(r.night)}`;
   $('#dayCardTitle').textContent = `Following day, ${fmtDate(r.day)}`;
   const kv = list => list.map(([k, v]) => `<div><b>${k}</b><span>${v}</span></div>`).join('');
   $('#kvNight').innerHTML = kv([
     ['Bedtime (your answer)', hm(bedOf(r))], ['Estimated onset (band)', s ? hm(s.onset) : '–'], ['Woke up', s ? hm(s.wake) : '–'],
-    ['Time to fall asleep', or(lm, v => v + ' min')], ['Hours slept', s ? dur(s.sleepMin) : '–'], ['Awake in the night', s ? or(s.awakeMin, v => v + ' min') : '–'],
-    ['Sleep efficiency', or(e, v => v.toFixed(0) + '%')], ['Awakenings (≥ 10 min)', s ? or(s.awakenings) : '–'],
+    ['Band start to first sleep stage', or(lm, v => v + ' min')], ['Hours slept', s ? dur(s.sleepMin) : '–'], ['Awake in the night', s ? or(s.awakeMin, v => v + ' min') : '–'],
+    ['Recorded sleep-period efficiency', or(e, v => v.toFixed(1) + '%')], ['Awakenings (≥ 10 min)', s ? or(s.awakenings) : '–'],
     ['Average heart rate', s ? or(s.hrAvg, v => v + ' bpm') : '–'], ['Peak heart rate', s ? bpmAt(s.hrPeak, s.hrPeakAt) : '–']]);
   $('#kvDay').innerHTML = kv([
-    ['Steps', or(r.steps, v => v.toLocaleString('en-GB'))], ['Active minutes', or(r.active, v => v + ' min')],
+    ['Steps', or(r.steps, v => v.toLocaleString('en-GB'))],
     ['Average heart rate', or(r.hrDay.avg, v => v + ' bpm')], ['Peak heart rate', bpmAt(r.hrDay.peak, r.hrDay.peakAt)],
     ['Energy at midday', or(r.midday && r.midday.energy, v => v + ' / 5')], ['Energy in the evening', or(r.evening && r.evening.energy, v => v + ' / 5')],
     ['Productive hours', or(r.evening && r.evening.productive, v => v + ' h')], ['Last meal', r.evening ? hm(r.evening.meal) : '–']]);
@@ -1082,7 +1100,7 @@ document.querySelectorAll('[data-hr-range]').forEach(button=>button.addEventList
 document.querySelectorAll('[data-top]').forEach(b => b.addEventListener('click', () => {
   topMetric = b.dataset.top;
   document.querySelectorAll('[data-top]').forEach(x => x.setAttribute('aria-pressed', x === b));
-  $('#topName').textContent = {productive: 'Productive hours (your answer)', steps: 'Steps (band)', active: 'Active minutes (band)'}[topMetric];
+  $('#topName').textContent = {productive: 'Productive hours (your answer)', steps: 'Steps (band)'}[topMetric];
   $('#topSw').style.background = topMetric === 'productive' ? 'var(--self)' : 'var(--day)';
   if (DATA && view === 'week') mirrorChart('#chMirror', weeks[wIdx].rows);
 }));
